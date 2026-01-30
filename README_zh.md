@@ -23,7 +23,8 @@
   <img src="asset/5.png" width="45%" />
   <img src="asset/6.png" width="45%" />
   <br />
-  <img src="asset/7.png" width="90.5%" />
+  <img src="asset/7.png" width="45%" />
+  <img src="asset/8.png" width="45%" />
 </div>
 
 ## ✨ 核心特性
