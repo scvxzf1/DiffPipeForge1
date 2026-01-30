@@ -113,6 +113,7 @@ export function TrainingConfig({ data, modelType, onChange, validationEnabled = 
                         ) : (
                             <div className="grid gap-6 md:grid-cols-3">
                                 <GlassInput label={t('training.eval_every_n_epochs')} name="eval_every_n_epochs" type="number" value={data.eval_every_n_epochs ?? 1} onChange={handleChange} />
+                                <GlassInput label={t('advanced_training.eval_every_n_steps')} name="eval_every_n_steps" type="number" value={data.eval_every_n_steps ?? 0} onChange={handleChange} />
                                 <GlassInput label={t('training.eval_batch_size')} name="eval_micro_batch_size_per_gpu" type="number" value={data.eval_micro_batch_size_per_gpu ?? 1} onChange={handleChange} />
                                 <GlassInput label={t('training.image_eval_micro_batch_size_per_gpu')} name="image_eval_micro_batch_size_per_gpu" type="number" value={data.image_eval_micro_batch_size_per_gpu ?? data.eval_micro_batch_size_per_gpu ?? 1} onChange={handleChange} placeholder={t('common.optional')} />
                                 <GlassInput label={t('training.eval_grad_accumulation')} name="eval_gradient_accumulation_steps" type="number" value={data.eval_gradient_accumulation_steps ?? 1} onChange={handleChange} />

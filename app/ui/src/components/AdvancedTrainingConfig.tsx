@@ -31,7 +31,6 @@ export function AdvancedTrainingConfig({ data, onChange }: AdvancedTrainingConfi
                 <GlassInput label={t('advanced_training.map_num_proc')} name="map_num_proc" type="number" value={data.map_num_proc ?? 0} onChange={handleChange} />
 
                 <GlassInput label={t('advanced_training.save_every_n_steps')} name="save_every_n_steps" type="number" value={data.save_every_n_steps ?? 0} onChange={handleChange} />
-                <GlassInput label={t('advanced_training.eval_every_n_steps')} name="eval_every_n_steps" type="number" value={data.eval_every_n_steps ?? 0} onChange={handleChange} />
                 <GlassInput label={t('advanced_training.checkpoint_every_n_epochs')} name="checkpoint_every_n_epochs" type="number" value={data.checkpoint_every_n_epochs ?? 0} onChange={handleChange} />
 
                 <div className="md:col-span-3">

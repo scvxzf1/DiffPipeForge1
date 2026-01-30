@@ -45,6 +45,7 @@ const DEFAULT_TRAINING_DATA = {
     save_every_n_epochs: 1,
     checkpoint_every_n_minutes: 120,
     eval_every_n_epochs: 1,
+    eval_every_n_steps: 0,
     eval_micro_batch_size_per_gpu: 1,
     eval_gradient_accumulation_steps: 1,
     eval_before_first_step: false,
@@ -352,8 +353,14 @@ export function ModelTrainingPage({ importedConfig, globalModelType, setGlobalMo
             });
         }
 
+        // Prune redundant parameters for non-video models
+        const isVideoModel = ['hunyuan_video', 'ltx_video', 'wan21', 'wan22', 'hunyuan_video_15', 'cosmos'].includes(modelData.model_type || '');
+        if (!isVideoModel) {
+            delete fullConfig.video_clip_mode;
+        }
+
         return { fullConfig, trainConfigPath, datasetPath, evalDatasetPath };
-    }
+    };
 
     const validate = (): { valid: boolean; message?: string } => {
         // 移除输出目录名的非空强校验，允许用户保存中间状态
@@ -472,7 +479,8 @@ export function ModelTrainingPage({ importedConfig, globalModelType, setGlobalMo
                 'blocks_to_swap', 'caching_batch_size', 'save_every_n_epochs', 'save_every_n_steps',
                 'eval_every_n_epochs', 'eval_every_n_steps', 'checkpoint_every_n_epochs',
                 'checkpoint_every_n_minutes', 'pipeline_stages', 'map_num_proc', 'steps_per_print',
-                'max_steps', 'image_micro_batch_size_per_gpu', 'image_eval_micro_batch_size_per_gpu'
+                'max_steps', 'image_micro_batch_size_per_gpu', 'image_eval_micro_batch_size_per_gpu',
+                'eval_micro_batch_size_per_gpu', 'eval_gradient_accumulation_steps'
             ]);
 
             topLevelKeys.forEach(key => {
