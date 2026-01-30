@@ -1,0 +1,293 @@
+import { useState, useEffect, useRef } from 'react';
+import { GlassCard } from './ui/GlassCard';
+import { Terminal, XCircle, ScrollText, Download, Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
+import { GlassButton } from './ui/GlassButton';
+import { GlassSelect } from './ui/GlassSelect';
+import { useGlassToast } from './ui/GlassToast';
+
+interface Session {
+    id: string;
+    path: string;
+    timestamp: number;
+    hasLog: boolean;
+}
+
+interface SpeedData {
+    samplesPerSec: number;
+    iterTime: number;
+}
+
+export function TrainingLogPage({ projectPath }: { projectPath?: string | null }) {
+    const { t } = useTranslation();
+    const { showToast } = useGlassToast();
+    const [logs, setLogs] = useState<string[]>([]);
+    const [isTraining, setIsTraining] = useState(false);
+    const [sessions, setSessions] = useState<Session[]>([]);
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>('current');
+    const [speed, setSpeed] = useState<SpeedData | null>(null);
+    const logEndRef = useRef<HTMLDivElement>(null);
+    const isFirstLoad = useRef(true);
+
+    const fetchSessions = async () => {
+        if (!projectPath) return;
+        const configPath = `${projectPath}/trainconfig.toml`;
+        try {
+            const res = await window.ipcRenderer.invoke('get-training-sessions', configPath);
+            setSessions(res);
+        } catch (e) {
+            console.error("Failed to fetch sessions:", e);
+        }
+    };
+
+    const parseSpeedFromLogs = (logLines: string[]) => {
+        if (!logLines || logLines.length === 0) return null;
+        for (let i = logLines.length - 1; i >= 0; i--) {
+            const match = logLines[i].match(/iter time \(s\):\s*([\d.]+)\s*samples\/sec:\s*([\d.]+)/);
+            if (match) {
+                return {
+                    iterTime: parseFloat(match[1]),
+                    samplesPerSec: parseFloat(match[2])
+                };
+            }
+        }
+        return null;
+    };
+
+    // Load logs handle (File or Memory)
+    const loadSessionLogs = async (sessionId: string | null) => {
+        if (!sessionId || sessionId === 'current') {
+            const status = await window.ipcRenderer.invoke('get-training-status');
+            setIsTraining(status.running);
+            if (status.currentLogFilePath) {
+                const res = await window.ipcRenderer.invoke('get-training-logs', status.currentLogFilePath);
+                setLogs(res || []);
+                setSpeed(parseSpeedFromLogs(res || []));
+            } else if (status.logs) {
+                setLogs(status.logs);
+                setSpeed(parseSpeedFromLogs(status.logs));
+            } else {
+                setLogs([]);
+                setSpeed(null);
+            }
+        } else {
+            const session = sessions.find(s => s.id === sessionId);
+            if (session) {
+                const res = await window.ipcRenderer.invoke('get-training-logs', session.path);
+                setLogs(res || []);
+                setSpeed(parseSpeedFromLogs(res || []));
+            }
+        }
+    };
+
+    // Main initialization and session switching
+    useEffect(() => {
+        if (projectPath && isFirstLoad.current) {
+            fetchSessions().then(() => {
+                loadSessionLogs(selectedSessionId);
+            });
+            isFirstLoad.current = false;
+        } else {
+            // Just switch view, don't clear if it's the same
+            loadSessionLogs(selectedSessionId);
+        }
+    }, [selectedSessionId, projectPath]);
+
+    // Background session refresh (silent, doesn't wipe logs)
+    useEffect(() => {
+        if (!isFirstLoad.current) {
+            const timer = setInterval(() => {
+                if (!isTraining) fetchSessions();
+            }, 30000);
+            return () => clearInterval(timer);
+        }
+    }, [isTraining]);
+
+    useEffect(() => {
+        const handleLogs = (_event: any, newLog: string) => {
+            // Only append to logs if we are looking at the "current" session
+            if (selectedSessionId === 'current' || !selectedSessionId) {
+                setLogs(prev => {
+                    const newLogs = [...prev, newLog];
+                    return newLogs.slice(-2000);
+                });
+            }
+        };
+
+        const handleSpeed = (_event: any, speedData: SpeedData) => {
+            if (selectedSessionId === 'current' || !selectedSessionId) {
+                setSpeed(speedData);
+            }
+        };
+
+        const handleStatus = (_event: any, status: any) => {
+            if (status.type === 'finished' || status.type === 'error') {
+                setIsTraining(false);
+                setSpeed(null);
+                fetchSessions();
+            } else if (status.type === 'started') {
+                setIsTraining(true);
+                setSpeed(null);
+                setSelectedSessionId('current'); // Switch to live view immediately
+                // No setLogs([]) here, we rely on main.ts clearing queue or initial fetch
+                setTimeout(() => fetchSessions(), 7000); // Update session list for the future
+            }
+        };
+
+        window.ipcRenderer.on('training-output', handleLogs);
+        window.ipcRenderer.on('training-status', handleStatus);
+        window.ipcRenderer.on('training-speed', handleSpeed);
+
+        return () => {
+            window.ipcRenderer.off('training-output', handleLogs);
+            window.ipcRenderer.off('training-status', handleStatus);
+            window.ipcRenderer.off('training-speed', handleSpeed);
+        };
+    }, [selectedSessionId]);
+
+    const handleStopTraining = async () => {
+        try {
+            const res = await window.ipcRenderer.invoke('stop-training');
+            if (res.success) {
+                setIsTraining(false);
+                setSpeed(null);
+                showToast(t('training.training_stopped'), 'success');
+            } else {
+                showToast(t('training.failed_stop'), 'error');
+            }
+        } catch (e) {
+            console.error("Failed to stop training:", e);
+        }
+    };
+
+    useEffect(() => {
+        if (isTraining) {
+            logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [logs, isTraining]);
+
+    const downloadLogs = () => {
+        const content = logs.join('\n');
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const name = selectedSessionId || 'current';
+        a.download = `training_log_${name}.log`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const sessionOptions = [
+        { label: `● ${t('training_log.current_session')}`, value: 'current' },
+        ...sessions.map(s => ({
+            label: `${s.id} (${new Date(s.timestamp).toLocaleString()})`,
+            value: s.id
+        }))
+    ];
+
+    return (
+        <div className="flex flex-col gap-6 animate-in fade-in duration-500 h-full max-h-[calc(100vh-120px)]">
+            <div className="flex items-end justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                    <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-violet-600 dark:from-blue-400 dark:to-violet-400">
+                        {t('nav.training_log')}
+                    </h2>
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <p className="text-muted-foreground whitespace-nowrap">
+                            {isTraining ? t('training_log.status_active') : t('training_log.status_inactive')}
+                        </p>
+                        <div className="flex items-center gap-2 max-w-md">
+                            <GlassSelect
+                                className="h-8 py-0 pl-2 text-xs min-w-[240px]"
+                                options={sessionOptions}
+                                value={selectedSessionId || 'current'}
+                                onChange={(e) => setSelectedSessionId(e.target.value)}
+                            />
+                        </div>
+                        {speed !== null && (
+                            <div className="px-3 py-1 rounded-xl bg-white/10 text-white border border-white/20 font-mono text-xs flex items-center gap-3 animate-in zoom-in duration-300">
+                                <div className="flex items-center gap-1.5 pt-0.5">
+                                    <Terminal size={12} className="opacity-70" />
+                                    <span>{t('training_log.speed')}: <strong>{speed.samplesPerSec.toFixed(3)}</strong> samples/sec</span>
+                                </div>
+                                <div className="w-[1px] h-3 bg-white/20" />
+                                <div className="flex items-center gap-1.5 pt-0.5">
+                                    <span>{t('training_log.iter_time')}: <strong>{speed.iterTime.toFixed(2)}</strong>s</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex gap-2 mb-1">
+                    {isTraining && (
+                        <GlassButton
+                            className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white border-none shadow-lg"
+                            size="sm"
+                            onClick={handleStopTraining}
+                        >
+                            <Square className="w-4 h-4 mr-2" />
+                            {t('training.stop')}
+                        </GlassButton>
+                    )}
+                    <GlassButton variant="outline" size="sm" onClick={downloadLogs} disabled={logs.length === 0}>
+                        <Download className="w-4 h-4 mr-2" />
+                        {t('common.export')}
+                    </GlassButton>
+                    <GlassButton variant="outline" size="sm" onClick={() => setLogs([])}>
+                        <XCircle className="w-4 h-4 mr-2" />
+                        {t('common.clear')}
+                    </GlassButton>
+                </div>
+            </div>
+
+            <GlassCard className="flex-1 p-0 overflow-hidden flex flex-col border-primary/20 bg-black/40 backdrop-blur-xl min-h-0">
+                <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10 text-xs font-mono opacity-70">
+                    <div className="flex items-center gap-2">
+                        <Terminal className="w-3.5 h-3.5" />
+                        <span>
+                            {selectedSessionId === 'current' || !selectedSessionId
+                                ? `STDOUT_STREAM (${t('training_log.current_session')})`
+                                : `STDOUT_STREAM - SESSION: ${selectedSessionId}`}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={cn("w-2 h-2 rounded-full", isTraining ? "bg-green-500 animate-pulse" : "bg-gray-500")} />
+                        <span className="font-mono">{isTraining ? 'LIVE' : 'IDLE'}</span>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 font-mono text-[13px] leading-relaxed scroll-smooth selection:bg-primary/30 custom-scrollbar">
+                    {logs.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center opacity-30 gap-4">
+                            <ScrollText className="w-12 h-12" />
+                            <p className="italic text-lg">
+                                {isTraining ? t('training_log.waiting') : t('training_log.no_logs')}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            {logs.map((log, idx) => (
+                                <div key={idx} className={cn(
+                                    "whitespace-pre-wrap break-all py-0.5 border-l-2 border-transparent hover:border-white/10 pl-3 transition-colors",
+                                    log.toLowerCase().includes('error') || log.toLowerCase().includes('exception') || log.toLowerCase().includes('traceback') ? "text-red-400 bg-red-400/5" :
+                                        log.toLowerCase().includes('warning') ? "text-amber-400 bg-amber-400/5" :
+                                            log.includes('[Command]:') ? "text-violet-400 font-bold" :
+                                                log.toLowerCase().includes('step') || log.toLowerCase().includes('info') ? "text-blue-300 font-bold" : "text-gray-300"
+                                )}>
+                                    <span className="inline-block w-8 text-white/20 select-none text-[10px]">{idx + 1}</span>
+                                    {log}
+                                </div>
+                            ))}
+                            <div ref={logEndRef} className="h-4" />
+                        </div>
+                    )}
+                </div>
+            </GlassCard>
+        </div>
+    );
+}

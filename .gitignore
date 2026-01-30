@@ -1,0 +1,120 @@
+# --------------------------
+# System / OS
+# --------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.tmp
+# Windows Zone Identifier files
+*:Zone.Identifier
+*.Zone.Identifier
+*Zone.Identifier
+
+# --------------------------
+# Python / Backend
+# --------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+pip-log.txt
+*.arrow
+
+# --------------------------
+# NodeJS / Frontend (UI)
+# --------------------------
+node_modules/
+ui/node_modules/
+ui/dist/
+ui/dist-electron/
+ui/release/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+
+# --------------------------
+# IDEs / Editors
+# --------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+.spyderproject
+.spyproject
+.ropeproject
+
+# --------------------------
+# Project Specific
+# --------------------------
+# Output data
+output/
+
+# Input data (often local testing data)
+input/
+
+# Temporary caches
+.cache/
+**/cache/
+temp/
+tmp/
+
+# Model Weights (Large files)
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Documentation builds
+docs/_build/
+site/
+
+# Installer / Release
+release/
+*.exe
+*.
+
+diffusion_nodes/
+
+1/
+
+python_embeded_DP/
+
+train_config/
+
+
+clean_build.bat
+
+
+supported_models.md
+
+
+
+settings.json

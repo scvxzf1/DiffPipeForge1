@@ -1,0 +1,57 @@
+// @see - https://www.electron.build/configuration/configuration
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.tiandong.diffpipe-forge",
+  "productName": "DiffPipe Forge",
+  "asar": true,
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist",
+    "dist-electron"
+  ],
+  "extraResources": [
+    {
+      "from": "../backend",
+      "to": "backend",
+      "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc", "!**/.git/**"]
+    },
+    {
+      "from": "../backend_bridge.py",
+      "to": "backend_bridge.py"
+    },
+    {
+      "from": "../requirements.txt",
+      "to": "requirements.txt"
+    }
+  ],
+  "win": {
+    "icon": "public/icon.ico",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "7z",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "${productName}-${version}-Windows.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false
+  },
+  "mac": {
+    "target": ["dmg"],
+    "artifactName": "${productName}-${version}-Mac.${ext}"
+  },
+  "linux": {
+    "target": ["AppImage"],
+    "artifactName": "${productName}-${version}-Linux.${ext}"
+  }
+}
