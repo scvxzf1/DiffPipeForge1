@@ -26,7 +26,7 @@ export function WindowTitleBar() {
                 <span className="text-xs font-bold tracking-tight text-foreground/80">
                     {t('app.title') || 'DiffPipe Forge'}
                     <span className="mx-2 opacity-30">|</span>
-                    <span className="font-medium opacity-60 text-[10px] uppercase tracking-widest">Premium UI</span>
+                    <span className="font-medium opacity-60 text-[10px] uppercase tracking-widest">天冬制作</span>
                 </span>
             </div>
 
