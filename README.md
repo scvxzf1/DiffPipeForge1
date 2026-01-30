@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-![DiffPipe Forge](app/ui/public/icon.png)
+<img src="app/ui/public/icon.png" alt="DiffPipe Forge" width="256">
 
 **DiffPipe Forge** is a premium, high-performance GUI designed for training state-of-the-art diffusion models. Built with Electron and React, it provides a seamless and visually stunning experience for researchers and AI enthusiasts to fine-tune their models with precision and ease.
 
@@ -52,11 +52,9 @@
 ```text
 DiffPipeForge/
 ├── app/                # Main application code (Electron/React)
-├── diffusion_nodes/    # Core training logic and model integrations
-├── dataset/            # Default directory for datasets
 ├── train_config/       # Default directory for configuration files
-├── output/             # Training outputs (checkpoints, samples, logs)
-├── start.bat          # Main entry point to launch the app
+├── output/             # Training outputs (checkpoints, logs, configs)
+├── start.bat           # Main entry point to launch the app
 └── requirements.txt    # Python dependencies
 ```
 
@@ -64,9 +62,15 @@ DiffPipeForge/
 
 ### Prerequisites
 
-1.  **Python Environment**: Ensure you have a Python 3.10+ environment installed.
-2.  **Dependencies**:
+  **Python Environment**: Ensure you have a Python 3.10+ environment installed.
+      ```bash
+    git clone --recurse-submodules https://github.com/TianDongL/DiffPipeForge.git
+    ```
+
+  **Dependencies**:
     ```bash
+    pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu128
+    
     pip install -r requirements.txt
     ```
     
@@ -92,9 +96,3 @@ For detailed configuration examples and model-specific notes, please refer to:
 - [Supported Models Guide](supported_models.md)
 - [Example Configuration Files](examples/)
 
-## 🤝 Credits
-
-Created by **Tiandong (天冬)**. Special thanks to the open-source community for the underlying models and training scripts.
-
----
-*DiffPipe Forge - Shaping the future of diffusion training.*

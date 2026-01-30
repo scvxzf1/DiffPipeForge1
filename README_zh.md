@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-![DiffPipe Forge](app/ui/public/icon.png)
+<img src="app/ui/public/icon.png" alt="DiffPipe Forge" width="256">
 
 **DiffPipe Forge** 是一款专为训练最先进的扩散模型而设计的高级、高性能图形界面（GUI）。基于 Electron 和 React 开发，它为研究人员和 AI 爱好者提供了一个视觉惊艳且操作流畅的平台，能够精确且轻松地微调模型。
 
@@ -52,11 +52,9 @@
 ```text
 DiffPipeForge/
 ├── app/                # 主应用程序代码 (Electron/React)
-├── diffusion_nodes/    # 核心训练逻辑与模型集成
-├── dataset/            # 默认数据集目录
 ├── train_config/       # 默认配置文件目录
-├── output/             # 训练输出（检查点、采样图、日志）
-├── start.bat          # 启动应用程序的主入口
+├── output/             # 训练输出（检查点、日志、配置文件）
+├── start.bat           # 启动应用程序的主入口
 └── requirements.txt    # Python 依赖项
 ```
 
@@ -64,10 +62,17 @@ DiffPipeForge/
 
 ### 前置条件
 
-1.  **Python 环境**：确保已安装 Python 3.10+。
-2.  **安装依赖**：
+  **Python 环境**：确保已安装 Python 3.10+。
     ```bash
+    git clone --recurse-submodules https://github.com/TianDongL/DiffPipeForge.git
+    ```
+
+  **安装依赖**：
+    ```bash
+    pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu128
+    
     pip install -r requirements.txt
+
     ```
     
 
@@ -92,9 +97,3 @@ DiffPipeForge/
 - [支持模型指南](supported_models.md)
 - [示例配置文件](examples/)
 
-## 🤝 致谢
-
-由 **天冬 (Tiandong)** 开发。特别感谢开源社区提供的基础模型和训练脚本。
-
----
-*DiffPipe Forge - 塑造扩散模型训练的未来。*

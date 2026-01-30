@@ -121,3 +121,5 @@ settings.json
 
 
 /dataset/
+
+*.zip
