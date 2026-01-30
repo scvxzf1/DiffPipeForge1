@@ -2,7 +2,9 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-<img src="app/ui/public/icon.png" alt="DiffPipe Forge" width="256">
+<div align="center">
+  <img src="app/ui/public/icon.png" alt="DiffPipe Forge" width="256">
+</div>
 
 **DiffPipe Forge** 是一款专为训练最先进的扩散模型而设计的高级、高性能图形界面（GUI）。基于 Electron 和 React 开发，它为研究人员和 AI 爱好者提供了一个视觉惊艳且操作流畅的平台，能够精确且轻松地微调模型。
 
@@ -70,7 +72,7 @@ DiffPipeForge/
   **安装依赖**：
     ```bash
     pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu128
-    
+
     pip install -r requirements.txt
 
     ```

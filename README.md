@@ -2,7 +2,9 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-<img src="app/ui/public/icon.png" alt="DiffPipe Forge" width="256">
+<div align="center">
+  <img src="app/ui/public/icon.png" alt="DiffPipe Forge" width="256">
+</div>
 
 **DiffPipe Forge** is a premium, high-performance GUI designed for training state-of-the-art diffusion models. Built with Electron and React, it provides a seamless and visually stunning experience for researchers and AI enthusiasts to fine-tune their models with precision and ease.
 
