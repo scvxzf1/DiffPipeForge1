@@ -25,3 +25,30 @@
 [submodule "app/backend/core/submodules/ComfyUI"]
 	path = app/backend/core/submodules/ComfyUI
 	url = https://github.com/comfyanonymous/ComfyUI.git
+[submodule "app/backend/core_linux/submodules/ComfyUI"]
+	path = app/backend/core_linux/submodules/ComfyUI
+	url = https://github.com/comfyanonymous/ComfyUI.git
+[submodule "app/backend/core_linux/submodules/Cosmos"]
+	path = app/backend/core_linux/submodules/Cosmos
+	url = https://github.com/NVIDIA/Cosmos
+[submodule "app/backend/core_linux/submodules/HiDream"]
+	path = app/backend/core_linux/submodules/HiDream
+	url = https://github.com/HiDream-ai/HiDream-I1
+[submodule "app/backend/core_linux/submodules/HunyuanImage-2.1"]
+	path = app/backend/core_linux/submodules/HunyuanImage-2.1
+	url = https://github.com/Tencent-Hunyuan/HunyuanImage-2.1
+[submodule "app/backend/core_linux/submodules/HunyuanVideo"]
+	path = app/backend/core_linux/submodules/HunyuanVideo
+	url = https://github.com/Tencent/HunyuanVideo
+[submodule "app/backend/core_linux/submodules/LTX_Video"]
+	path = app/backend/core_linux/submodules/LTX_Video
+	url = https://github.com/Lightricks/LTX-Video
+[submodule "app/backend/core_linux/submodules/Lumina_2"]
+	path = app/backend/core_linux/submodules/Lumina_2
+	url = https://github.com/Alpha-VLLM/Lumina-Image-2.0
+[submodule "app/backend/core_linux/submodules/OmniGen2"]
+	path = app/backend/core_linux/submodules/OmniGen2
+	url = https://github.com/VectorSpaceLab/OmniGen2
+[submodule "app/backend/core_linux/submodules/flow"]
+	path = app/backend/core_linux/submodules/flow
+	url = https://github.com/lodestone-rock/flow
