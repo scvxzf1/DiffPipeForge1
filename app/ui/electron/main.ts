@@ -1736,6 +1736,7 @@ enable_ar_bucket = true
 
         trainingProcess = spawn(spawnExe, spawnArgs, {
           cwd: cwd,
+          detached: process.platform !== 'win32', // Needed for process group killing on Linux
           env: {
             ...process.env,
             PYTHONUTF8: '1',
@@ -1863,6 +1864,14 @@ enable_ar_bucket = true
       try {
         if (process.platform === 'win32' && trainingProcess.pid) {
           exec(`taskkill /pid ${trainingProcess.pid} /T /F`);
+        } else if (process.platform === 'linux' && trainingProcess.pid) {
+          // Kill the entire process group on Linux to clean up orphaned deepspeed children
+          try {
+            process.kill(-trainingProcess.pid, 'SIGKILL');
+          } catch (e) {
+            console.error("[Training] Process group kill failed, trying normal kill:", e);
+            trainingProcess.kill('SIGKILL');
+          }
         } else {
           trainingProcess.kill();
         }
