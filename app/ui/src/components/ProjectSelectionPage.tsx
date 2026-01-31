@@ -39,7 +39,7 @@ export function ProjectSelectionPage({ onSelect }: ProjectSelectionPageProps) {
     }, []);
 
     const addToHistory = async (path: string) => {
-        const name = path.split('\\').pop() || 'Untitled Project';
+        const name = path.split(/[/\\]/).filter(Boolean).pop() || 'Untitled Project';
         const project: Project = {
             name,
             path,
@@ -132,6 +132,7 @@ export function ProjectSelectionPage({ onSelect }: ProjectSelectionPageProps) {
                                     sourcePath: filePath,
                                     filename: targetName
                                 });
+
 
                                 if (copyResult.success) {
                                     const savedPath = copyResult.path;
