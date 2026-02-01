@@ -336,7 +336,7 @@ export function MonitorPage({ className, initialLogDir, projectPath }: MonitorPa
 
             {/* Monitor View Area for TensorBoard */}
             {viewMode === 'tensorboard' && isRunning && monitorUrl && (
-                <div className="h-[600px] w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 shadow-lg bg-white dark:bg-black/40 relative group">
+                <div className="h-[2000px] w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 shadow-lg bg-white dark:bg-black/40 relative group">
                     <iframe
                         ref={iframeRef}
                         src={monitorUrl}
