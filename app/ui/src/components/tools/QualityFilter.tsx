@@ -342,7 +342,17 @@ export function QualityFilter() {
             </GlassCard>
 
             {/* Image Preview Grid */}
-            <ImagePreviewGrid directory={imageDir} className="mt-6" />
+            <div className="grid grid-cols-1 gap-6">
+                <ImagePreviewGrid directory={imageDir} autoRefresh={true} />
+                {imageDir && (
+                    <ImagePreviewGrid
+                        directory={`${imageDir}/low_quality`}
+                        title={t('toolbox.low_quality_preview')}
+                        autoRefresh={true}
+                        isRestorable={true}
+                    />
+                )}
+            </div>
 
             <GlassConfirmDialog
                 isOpen={isConfirmOpen}

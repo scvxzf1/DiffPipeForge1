@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   removeAllListeners(channel: string) {
     return ipcRenderer.removeAllListeners(channel)
   },
+  removeListener(channel: string, listener: (...args: any[]) => void) {
+    return ipcRenderer.removeListener(channel, listener)
+  },
 
   // You can expose other APTs you need here.
   // ...

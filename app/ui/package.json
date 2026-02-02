@@ -19,6 +19,7 @@
     "react-i18next": "^16.5.3",
     "sharp": "^0.34.5",
     "smol-toml": "^1.6.0",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

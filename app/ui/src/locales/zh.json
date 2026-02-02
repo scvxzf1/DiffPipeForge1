@@ -54,7 +54,9 @@
         "enabled": "已启用",
         "preview_title": "目录预览",
         "no_images_found": "该目录下未找到支持的图片文件",
-        "load_more": "展开更多"
+        "load_more": "展开更多",
+        "restore_selected": "恢复所选",
+        "stop_download": "停止下载"
     },
     "about": {
         "title": "关于软件",
@@ -178,6 +180,13 @@
         },
         "open_folder": "打开所在文件夹",
         "open": "打开文件夹",
+        "result_preview": "结果预览",
+        "low_quality_preview": "质量过滤结果",
+        "style_mismatch_preview": "风格过滤结果",
+        "duplicates_preview": "重复项过滤结果",
+        "restore_selected": "恢复选中 ({{count}})",
+        "restore_success": "成功恢复 {{count}} 个文件",
+        "restore_failed": "恢复失败: {{error}}",
         "reset_defaults": "恢复默认",
         "confirm_reset": "确认恢复默认？",
         "confirm_reset_desc": "这将清除当前所有的参数设置，并恢复为初始推荐值。",
@@ -225,7 +234,10 @@
             "stopped": "风格筛选已停止",
             "download_model": "下载模型",
             "download_confirm": "确定要开始下载 CLIP 模型吗？\n\n- 请确保网络连接正常。",
-            "no_model": "本地未检测到模型，请先点击“下载模型”"
+            "no_model": "本地未检测到模型，请先点击“下载模型”",
+            "downloading": "正在下载 CLIP 模型...",
+            "download_success": "CLIP 模型下载成功！",
+            "download_failed": "下载 CLIP 模型失败。"
         }
     },
     "monitor": {
@@ -238,7 +250,8 @@
         "log_dir": "日志目录 Log Directory",
         "log_dir_placeholder": "输入训练项目路径或 output 中的日期文件夹",
         "start": "启动监控",
-        "stop": "停止服务",
+        "stop": "停止处理",
+        "stop_download": "停止下载",
         "open_browser": "浏览器打开",
         "running": "运行中",
         "started": "监控服务已启动",
@@ -447,7 +460,6 @@
         "select_title": "选择项目",
         "select_desc": "选择一个现有的训练项目或创建一个新项目。",
         "new": "新建项目",
-        "open": "打开项目",
         "recent": "最近项目",
         "no_recent": "暂无最近项目",
         "last_modified": "最后修改",

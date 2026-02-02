@@ -115,7 +115,7 @@ def move_to_low_quality(file_path, root_dir, reason):
     """将不合格图片移动到 low_quality 文件夹，并记录原因。"""
     low_quality_dir = os.path.join(root_dir, "low_quality")
     if not os.path.exists(low_quality_dir):
-        os.makedirs(low_quality_dir)
+        os.makedirs(low_quality_dir, exist_ok=True)
         
     dest_path = os.path.join(low_quality_dir, os.path.basename(file_path))
     

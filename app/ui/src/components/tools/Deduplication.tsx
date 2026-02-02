@@ -273,8 +273,17 @@ export function Deduplication() {
                 </div>
             </GlassCard>
 
-            {/* Image Preview Grid */}
-            <ImagePreviewGrid directory={imageDir} className="mt-6" />
+            <div className="grid grid-cols-1 gap-6">
+                <ImagePreviewGrid directory={imageDir} autoRefresh={true} />
+                {imageDir && (
+                    <ImagePreviewGrid
+                        directory={`${imageDir}/duplicates`}
+                        title={t('toolbox.duplicates_preview')}
+                        autoRefresh={true}
+                        isRestorable={true}
+                    />
+                )}
+            </div>
         </div>
     );
 }

@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassInput } from '@/components/ui/GlassInput';
 import { GlassButton } from '@/components/ui/GlassButton';
-import { Play, Square, Loader2, FolderOpen, RefreshCcw, Download, ExternalLink, Settings2, Terminal } from 'lucide-react';
+import { Play, Square, FolderOpen, RefreshCcw, Download, ExternalLink, Settings2, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGlassToast } from '../ui/GlassToast';
+import { GlassConfirmDialog } from '../ui/GlassConfirmDialog';
 import { ImagePreviewGrid } from './ImagePreviewGrid';
 
 interface FilterSettings {
@@ -27,26 +28,63 @@ const DEFAULT_SETTINGS: FilterSettings = {
 export function StyleFilter() {
     const { t, i18n } = useTranslation();
     const { showToast } = useGlassToast();
+    const [imageDir, setImageDir] = useState('');
     const [settings, setSettings] = useState<FilterSettings>(DEFAULT_SETTINGS);
-    const [isRunning, setIsRunning] = useState(false);
+    const [activeTask, setActiveTask] = useState<'idle' | 'filtering' | 'downloading'>('idle');
+    const [isDownloadConfirmOpen, setIsDownloadConfirmOpen] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Persist settings
+    // Sync status and logs on mount
     useEffect(() => {
-        const saved = localStorage.getItem('style-filter-settings');
-        if (saved) {
-            try {
-                setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
-            } catch (e) {
-                console.error("Failed to load settings:", e);
+        const sync = async () => {
+            // Load settings
+            const commonSettings = await window.ipcRenderer.invoke('get-tool-settings', 'common_toolbox_settings');
+            if (commonSettings.imageDir) setImageDir(commonSettings.imageDir);
+
+            const toolSettings = await window.ipcRenderer.invoke('get-tool-settings', 'style_filter');
+            if (toolSettings) {
+                setSettings(prev => ({ ...prev, ...toolSettings }));
             }
-        }
+
+            const status = await window.ipcRenderer.invoke('get-tool-status');
+            if (status.isRunning) {
+                if (status.scriptName === 'filter_style.py') {
+                    setActiveTask('filtering');
+                } else if (status.scriptName === 'download_clip.py') {
+                    setActiveTask('downloading');
+                }
+            }
+
+            const savedLogs = await window.ipcRenderer.invoke('get-tool-logs');
+            if (savedLogs && savedLogs.length > 0) {
+                setLogs(savedLogs);
+            }
+        };
+        sync();
     }, []);
 
+    const saveSettings = async () => {
+        // Save shared settings
+        await window.ipcRenderer.invoke('save-tool-settings', {
+            toolId: 'common_toolbox_settings',
+            settings: { imageDir }
+        });
+
+        // Save tool-specific settings
+        await window.ipcRenderer.invoke('save-tool-settings', {
+            toolId: 'style_filter',
+            settings: settings
+        });
+    };
+
+    // Auto-save on change (debounced)
     useEffect(() => {
-        localStorage.setItem('style-filter-settings', JSON.stringify(settings));
-    }, [settings]);
+        const timer = setTimeout(() => {
+            saveSettings();
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [imageDir, settings]);
 
     // Logs auto-scroll
     useEffect(() => {
@@ -56,39 +94,38 @@ export function StyleFilter() {
     }, [logs]);
 
     const handleSelectDir = async () => {
-        const path = await window.ipcRenderer.invoke('open-directory-dialog');
-        if (path) {
-            setSettings(prev => ({ ...prev, imageDir: path }));
+        const result = await window.ipcRenderer.invoke('dialog:openFile', {
+            properties: ['openDirectory']
+        });
+        if (!result.canceled && result.filePaths.length > 0) {
+            setImageDir(result.filePaths[0]);
         }
     };
 
     const handleStart = async () => {
-        if (!settings.imageDir) {
+        if (!imageDir) {
             showToast(t('toolbox.errors.no_dir'), 'error');
             return;
         }
 
-        setIsRunning(true);
-        setLogs([]);
-
-        // Construct arguments
-        const args = [
-            'tools/filter_style/filter_style.py',
-            '--dir', settings.imageDir,
-            '--keep', settings.keep,
-            '--remove', settings.remove,
-            '--batch-size', settings.batchSize,
-            '--model', 'openai/clip-vit-base-patch32',
-            '--threads', settings.threads
-        ];
+        setActiveTask('filtering');
+        const listener = (_event: any, data: string) => {
+            setLogs(prev => [...prev, data]);
+        };
 
         try {
-            const listener = (_event: any, data: string) => {
-                setLogs(prev => [...prev, data]);
-            };
-
             window.ipcRenderer.on('tool-output', listener);
-            const result = await window.ipcRenderer.invoke('run-tool', args);
+            const result = await window.ipcRenderer.invoke('run-tool', {
+                scriptName: 'filter_style/filter_style.py',
+                args: [
+                    '--dir', imageDir,
+                    '--keep', settings.keep,
+                    '--remove', settings.remove,
+                    '--batch-size', settings.batchSize,
+                    '--model', 'openai/clip-vit-base-patch32',
+                    '--threads', settings.threads
+                ]
+            });
             window.ipcRenderer.removeListener('tool-output', listener);
 
             if (result.success) {
@@ -99,22 +136,54 @@ export function StyleFilter() {
         } catch (err: any) {
             showToast(err.message || "Error", 'error');
         } finally {
-            setIsRunning(false);
+            setActiveTask('idle');
         }
     };
 
     const handleStop = async () => {
         await window.ipcRenderer.invoke('stop-tool');
-        setIsRunning(false);
+        setActiveTask('idle');
     };
 
     const handleOpenDir = async () => {
-        if (!settings.imageDir) {
+        if (!imageDir) {
             showToast(t('toolbox.errors.no_dir'), 'error');
             return;
         }
-        await window.ipcRenderer.invoke('open-path', settings.imageDir);
+        await window.ipcRenderer.invoke('open-path', imageDir);
     };
+
+    useEffect(() => {
+        const handleOutput = (_: any, data: string) => {
+            setLogs(prev => [...prev.slice(-200), data]);
+        };
+        const handleStatus = (_: any, status: any) => {
+            if (status.type === 'finished') {
+                setActiveTask('idle');
+                if (status.scriptName === 'filter_style.py') {
+                    if (status.isSuccess) {
+                        showToast(t('toolbox.style_filter.finished'), 'success');
+                    } else {
+                        showToast(t('toolbox.style_filter.stopped') || "Stopped", 'error');
+                    }
+                } else if (status.scriptName === 'download_clip.py') {
+                    if (status.isSuccess) {
+                        showToast(t('toolbox.style_filter.download_success'), 'success');
+                    } else {
+                        showToast(t('toolbox.style_filter.download_failed'), 'error');
+                    }
+                }
+            }
+        };
+
+        const removeOutput = (window.ipcRenderer as any).on('tool-output', handleOutput);
+        const removeStatus = (window.ipcRenderer as any).on('tool-status', handleStatus);
+
+        return () => {
+            removeOutput();
+            removeStatus();
+        };
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -127,8 +196,8 @@ export function StyleFilter() {
                                 {t('toolbox.tagging.image_dir')}
                             </label>
                             <GlassInput
-                                value={settings.imageDir}
-                                onChange={(e) => setSettings(prev => ({ ...prev, imageDir: e.target.value }))}
+                                value={imageDir}
+                                onChange={(e) => setImageDir(e.target.value)}
                                 placeholder="C:\path\to\images"
                             />
                         </div>
@@ -213,10 +282,11 @@ export function StyleFilter() {
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 border border-white/5 w-fit transition-all mr-auto">
                             <div className={cn(
                                 "w-1.5 h-1.5 rounded-full transition-all duration-500",
-                                isRunning ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] animate-pulse" : "bg-blue-500/40"
+                                activeTask !== 'idle' ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] animate-pulse" : "bg-blue-500/40"
                             )} />
                             <span className="text-[11px] font-medium text-muted-foreground/80 tracking-wide uppercase">
-                                {isRunning ? t('common.running') : t('common.ready')}
+                                {activeTask === 'downloading' ? t('toolbox.style_filter.downloading') :
+                                    activeTask === 'filtering' ? t('common.running') : t('common.ready')}
                             </span>
                         </div>
                         <div className="flex gap-2">
@@ -224,55 +294,39 @@ export function StyleFilter() {
                                 onClick={handleOpenDir}
                                 variant="outline"
                                 className="gap-2"
-                                disabled={!settings.imageDir}
+                                disabled={!imageDir}
                             >
                                 <ExternalLink className="w-4 h-4" />
                                 {t('toolbox.open')}
                             </GlassButton>
 
-                            {!isRunning ? (
+                            {activeTask === 'downloading' ? (
+                                <GlassButton
+                                    variant="destructive"
+                                    className="h-10 px-6 text-sm font-semibold"
+                                    onClick={handleStop}
+                                >
+                                    <Square className="w-4 h-4 mr-2 fill-current" />
+                                    {t('common.stop_download')}
+                                </GlassButton>
+                            ) : activeTask === 'filtering' ? (
+                                <GlassButton
+                                    variant="destructive"
+                                    className="h-10 px-6 text-sm font-semibold"
+                                    onClick={handleStop}
+                                >
+                                    <Square className="w-4 h-4 mr-2 fill-current" />
+                                    {t('common.stop')}
+                                </GlassButton>
+                            ) : (
                                 <>
                                     <GlassButton
                                         variant="outline"
                                         className="h-10 text-sm font-semibold"
-                                        onClick={async () => {
-                                            if (window.confirm(t('toolbox.style_filter.download_confirm'))) {
-                                                setIsRunning(true);
-                                                setLogs([]);
-                                                const lang = i18n.language;
-                                                const source = lang === 'zh' ? 'modelscope' : 'huggingface';
-
-                                                try {
-                                                    const listener = (_event: any, data: string) => {
-                                                        setLogs(prev => [...prev, data]);
-                                                    };
-                                                    window.ipcRenderer.on('tool-output', listener);
-                                                    const result = await window.ipcRenderer.invoke('run-tool', {
-                                                        scriptName: 'download_clip.py',
-                                                        args: ['--source', source],
-                                                        online: true
-                                                    });
-                                                    window.ipcRenderer.removeListener('tool-output', listener);
-
-                                                    if (result.success) {
-                                                        showToast(t('common.success'), 'success');
-                                                    } else {
-                                                        showToast(result.error || "Download Failed", 'error');
-                                                    }
-                                                } catch (err: any) {
-                                                    showToast(err.message || "Error", 'error');
-                                                } finally {
-                                                    setIsRunning(false);
-                                                }
-                                            }
-                                        }}
-                                        disabled={isRunning}
+                                        onClick={() => setIsDownloadConfirmOpen(true)}
+                                        disabled={activeTask !== 'idle'}
                                     >
-                                        {isRunning ? (
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        ) : (
-                                            <Download className="w-4 h-4 mr-2" />
-                                        )}
+                                        <Download className="w-4 h-4 mr-2" />
                                         {t('toolbox.style_filter.download_model')}
                                     </GlassButton>
                                     <GlassButton
@@ -283,15 +337,6 @@ export function StyleFilter() {
                                         {t('common.start')}
                                     </GlassButton>
                                 </>
-                            ) : (
-                                <GlassButton
-                                    variant="destructive"
-                                    className="h-10 px-6 text-sm font-semibold"
-                                    onClick={handleStop}
-                                >
-                                    <Square className="w-4 h-4 mr-2 fill-current" />
-                                    {t('common.stop')}
-                                </GlassButton>
                             )}
                         </div>
                     </div>
@@ -323,7 +368,56 @@ export function StyleFilter() {
                 </div>
             </GlassCard>
 
-            <ImagePreviewGrid directory={settings.imageDir} className="mt-6" />
+            <div className="grid grid-cols-1 gap-6">
+                <ImagePreviewGrid directory={imageDir} autoRefresh={true} />
+                {imageDir && (
+                    <ImagePreviewGrid
+                        directory={`${imageDir}/style_mismatch`}
+                        title={t('toolbox.style_mismatch_preview')}
+                        autoRefresh={true}
+                        isRestorable={true}
+                    />
+                )}
+            </div>
+
+            <GlassConfirmDialog
+                isOpen={isDownloadConfirmOpen}
+                onClose={() => setIsDownloadConfirmOpen(false)}
+                onConfirm={async () => {
+                    setIsDownloadConfirmOpen(false);
+                    setActiveTask('downloading');
+                    setLogs([]);
+                    const lang = i18n.language;
+                    const source = lang === 'zh' ? 'modelscope' : 'huggingface';
+                    const modelId = source === 'modelscope' ? 'openai-mirror/clip-vit-base-patch32' : 'openai/clip-vit-base-patch32';
+
+                    try {
+                        const listener = (_event: any, data: string) => {
+                            setLogs(prev => [...prev, data]);
+                        };
+                        window.ipcRenderer.on('tool-output', listener);
+                        const result = await window.ipcRenderer.invoke('run-tool', {
+                            scriptName: 'download_clip.py',
+                            args: ['--source', source, '--model', modelId, '--output-dir', 'filter_style'],
+                            online: true
+                        });
+                        window.ipcRenderer.removeListener('tool-output', listener);
+
+                        if (!result.success) {
+                            // Only show toast if it failed to START (status listener handles finish/stop)
+                            if (result.error) showToast(result.error, 'error');
+                        }
+                    } catch (err: any) {
+                        showToast(err.message || "Error", 'error');
+                    } finally {
+                        setActiveTask('idle');
+                    }
+                }}
+                title={t('toolbox.style_filter.download_model')}
+                description={t('toolbox.style_filter.download_confirm')}
+                confirmText={t('common.confirm')}
+                cancelText={t('common.cancel')}
+            />
         </div>
     );
 }

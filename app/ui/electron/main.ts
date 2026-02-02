@@ -669,7 +669,8 @@ app.whenReady().then(() => {
   // IPC Handler to list images in a directory
   ipcMain.handle('list-images', async (_event, { dirPath, limit = 20 }) => {
     try {
-      if (!dirPath || !fs.existsSync(dirPath)) return { success: false, images: [], total: 0 };
+      if (!dirPath) return { success: false, error: "No directory path provided", images: [], total: 0 };
+      if (!fs.existsSync(dirPath)) return { success: true, images: [], total: 0 };
 
       const files = await fs.promises.readdir(dirPath);
       const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff']);
@@ -728,6 +729,40 @@ app.whenReady().then(() => {
     } catch (e) {
       console.error("Failed to write caption for:", imagePath, e);
       return { success: false, error: String(e) };
+    }
+  })
+
+  // IPC Handler to restore files to parent directory
+  ipcMain.handle('restore-files', async (_event, filePaths: string[]) => {
+    try {
+      let restoredCount = 0;
+      for (const filePath of filePaths) {
+        if (!fs.existsSync(filePath)) continue;
+
+        // Parent of current folder (likely 'low_quality', 'duplicates' etc.)
+        const currentDir = path.dirname(filePath);
+        const parentDir = path.dirname(currentDir);
+        const fileName = path.basename(filePath);
+        let destPath = path.join(parentDir, fileName);
+
+        // Conflict Resolution: Rename if exists
+        if (fs.existsSync(destPath)) {
+          const name = path.parse(fileName).name;
+          const ext = path.parse(fileName).ext;
+          let counter = 1;
+          while (fs.existsSync(path.join(parentDir, `${name}_restored_${counter}${ext}`))) {
+            counter++;
+          }
+          destPath = path.join(parentDir, `${name}_restored_${counter}${ext}`);
+        }
+
+        await fs.promises.rename(filePath, destPath);
+        restoredCount++;
+      }
+      return { success: true, count: restoredCount };
+    } catch (e: any) {
+      console.error("Failed to restore files:", e);
+      return { success: false, error: e.message };
     }
   })
 
@@ -1212,8 +1247,8 @@ app.whenReady().then(() => {
         modelsRoot = path.join(projectRoot, 'models');
       }
     } else {
-      // In Dev: APP_ROOT is app/ui, so ../.. gives the true workspace root
-      projectRoot = path.resolve(process.env.APP_ROOT, '../..');
+      // In Dev: APP_ROOT_DIR is the workspace root
+      projectRoot = APP_ROOT_DIR;
       modelsRoot = path.join(projectRoot, 'models');
     }
     return { modelsRoot, projectRoot };
@@ -2260,8 +2295,22 @@ enable_ar_bucket = true
           env
         });
 
+        // Helper to clean logs
+        const cleanLog = (data: any) => {
+          let str = data.toString();
+          // Remove ANSI codes
+          str = str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+          // Handle carriage returns by taking the last line if multiple
+          if (str.includes('\r')) {
+            const lines = str.split('\r');
+            str = lines[lines.length - 1];
+          }
+          return str;
+        };
+
         activeToolProcess.stdout?.on('data', (data) => {
-          const str = data.toString();
+          const str = cleanLog(data);
+          if (!str.trim()) return;
           console.log(`[Tool Out]: ${str}`);
           _event.sender.send('tool-output', str);
           toolLogBuffer.push(str);
@@ -2269,7 +2318,8 @@ enable_ar_bucket = true
         });
 
         activeToolProcess.stderr?.on('data', (data) => {
-          const str = data.toString();
+          const str = cleanLog(data);
+          if (!str.trim()) return;
           console.error(`[Tool Err]: ${str}`);
           _event.sender.send('tool-output', str);
           toolLogBuffer.push(str);
@@ -2283,27 +2333,15 @@ enable_ar_bucket = true
           console.log(`[Toolbox] Process exited with code ${code}`);
 
           if (win) {
-            win.webContents.send('tool-output', msg);
-          }
-          toolLogBuffer.push(msg);
-
-          const scriptName = activeToolScriptName;
-          activeToolProcess = null;
-          activeToolScriptName = null;
-
-          if (win) {
             win.webContents.send('tool-status', { type: 'finished', code, isSuccess, scriptName });
           }
-          isManuallyStopped = false;
-        });
-
-        activeToolProcess.on('error', (err) => {
-          console.error(`[Toolbox] Spawn error:`, err);
+          toolLogBuffer.push(msg); // Keep this line for logging the message
           activeToolProcess = null;
-          resolve({ success: false, error: err.message });
+          activeToolScriptName = null;
+          resolve({ success: isSuccess });
         });
 
-        resolve({ success: true, pid: activeToolProcess.pid });
+        // Removed early resolve to wait for process completion
 
       } catch (e: any) {
         console.error("[Toolbox] Start failed:", e);

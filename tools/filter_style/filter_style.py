@@ -49,7 +49,7 @@ def is_image_file(filename):
 def move_to_folder(file_path, root_dir, folder_name):
     target_dir = os.path.join(root_dir, folder_name)
     if not os.path.exists(target_dir):
-        os.makedirs(target_dir)
+        os.makedirs(target_dir, exist_ok=True)
         
     dest_path = os.path.join(target_dir, os.path.basename(file_path))
     

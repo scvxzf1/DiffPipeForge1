@@ -54,7 +54,9 @@
         "enabled": "enabled",
         "preview_title": "Directory Preview",
         "no_images_found": "No supported images found in this directory",
-        "load_more": "Load More"
+        "load_more": "Load More",
+        "restore_selected": "Restore",
+        "stop_download": "Stop Download"
     },
     "about": {
         "title": "About App",
@@ -178,6 +180,13 @@
         },
         "open_folder": "Open Target Folder",
         "open": "Open Folder",
+        "result_preview": "Result Preview",
+        "low_quality_preview": "Filtered Results (low_quality)",
+        "style_mismatch_preview": "Filtered Results (style_mismatch)",
+        "duplicates_preview": "Duplicates (duplicates)",
+        "restore_selected": "Restore ({{count}})",
+        "restore_success": "Restored {{count}} files",
+        "restore_failed": "Restore failed: {{error}}",
         "reset_defaults": "Reset Defaults",
         "confirm_reset": "Confirm Reset?",
         "confirm_reset_desc": "This will clear all current settings and restore them to the initial recommended values.",
@@ -225,7 +234,10 @@
             "stopped": "Style filter stopped",
             "download_model": "Download Model",
             "download_confirm": "Are you sure you want to start downloading the CLIP model?\n\n- In Chinese environments, it will download via ModelScope.\n- In English environments, it will download via HuggingFace.\n- Please ensure you have a stable internet connection.",
-            "no_model": "Local model not detected. Please click 'Download Model' first."
+            "no_model": "Local model not detected. Please click 'Download Model' first.",
+            "downloading": "Downloading CLIP model...",
+            "download_success": "CLIP model downloaded successfully!",
+            "download_failed": "Failed to download CLIP model."
         }
     },
     "monitor": {
@@ -238,7 +250,8 @@
         "log_dir": "Log Directory",
         "log_dir_placeholder": "Enter training project path or dated folder in output",
         "start": "Start Monitor",
-        "stop": "Stop Service",
+        "stop": "Stop Process",
+        "stop_download": "Stop Download",
         "open_browser": "Open in Browser",
         "running": "Running",
         "started": "Monitor started",

@@ -140,7 +140,7 @@ def main():
     duplicates_folder = os.path.join(directory, "duplicates")
     
     if not os.path.exists(duplicates_folder):
-        os.makedirs(duplicates_folder)
+        os.makedirs(duplicates_folder, exist_ok=True)
         
     print(f"扫描目录: {directory}")
     print(f"模式: {args.mode}")
