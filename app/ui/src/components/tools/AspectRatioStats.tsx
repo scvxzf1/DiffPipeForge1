@@ -262,7 +262,7 @@ export function AspectRatioStats() {
                                         onChange={(e) => setBucketSize(e.target.value)}
                                         className="h-10"
                                     />
-                                    <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5 ml-1">
+                                    <p className="text-xs text-muted-foreground/60 flex items-center gap-1.5 ml-1">
                                         <div className="w-1 h-1 rounded-full bg-primary/30" />
                                         {t('toolbox.aspect.bucket_size_hint')}
                                     </p>
@@ -371,7 +371,7 @@ export function AspectRatioStats() {
                             {results.errors > 0 && (
                                 <div className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl flex items-center gap-3 text-red-400/80">
                                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
-                                    <span className="text-[10px] font-medium">{t('toolbox.aspect.error_warning', { count: results.errors })}</span>
+                                    <span className="text-xs font-medium">{t('toolbox.aspect.error_warning', { count: results.errors })}</span>
                                 </div>
                             )}
                         </div>

@@ -222,7 +222,10 @@
             "threads_hint": "Threads for image loading, recommended 8-16",
             "started": "Style filter started",
             "finished": "Style filter finished",
-            "stopped": "Style filter stopped"
+            "stopped": "Style filter stopped",
+            "download_model": "Download Model",
+            "download_confirm": "Are you sure you want to start downloading the CLIP model?\n\n- In Chinese environments, it will download via ModelScope.\n- In English environments, it will download via HuggingFace.\n- Please ensure you have a stable internet connection.",
+            "no_model": "Local model not detected. Please click 'Download Model' first."
         }
     },
     "monitor": {

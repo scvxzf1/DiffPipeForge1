@@ -2221,7 +2221,7 @@ enable_ar_bucket = true
   // --- Toolbox IPC ---
   let activeToolScriptName: string | null = null;
   let isManuallyStopped = false;
-  ipcMain.handle('run-tool', async (_event, { scriptName, args = [] }: { scriptName: string, args: string[] }) => {
+  ipcMain.handle('run-tool', async (_event, { scriptName, args = [], online = false }: { scriptName: string, args: string[], online?: boolean }) => {
     if (activeToolProcess) {
       return { success: false, error: "已有工具正在运行中" };
     }
@@ -2243,9 +2243,21 @@ enable_ar_bucket = true
         isManuallyStopped = false;
         console.log(`[Toolbox] Running: ${pythonExe} ${scriptPath} ${args.join(' ')}`);
 
+        const env: any = {
+          ...process.env,
+          PYTHONUTF8: '1',
+          PYTHONIOENCODING: 'utf-8',
+          PYTHONUNBUFFERED: '1',
+        };
+
+        if (!online) {
+          env.HF_HUB_OFFLINE = '1';
+          env.TRANSFORMERS_OFFLINE = '1';
+        }
+
         activeToolProcess = spawn(pythonExe, [scriptPath, ...args], {
           cwd: toolsDir,
-          env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
+          env
         });
 
         activeToolProcess.stdout?.on('data', (data) => {

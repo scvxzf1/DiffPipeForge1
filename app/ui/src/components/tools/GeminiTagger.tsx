@@ -218,7 +218,7 @@ export function GeminiTagger() {
                                 className="w-full h-40 bg-black/10 dark:bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
                                 placeholder="Key 1&#10;Key 2..."
                             />
-                            <p className="text-[10px] text-muted-foreground mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                                 {t('toolbox.tagging.api_keys_hint')}
                             </p>
                         </div>
@@ -292,7 +292,7 @@ export function GeminiTagger() {
                                 onChange={(e) => setConcurrency(e.target.value)}
                                 placeholder="40"
                             />
-                            <p className="text-[10px] text-muted-foreground opacity-70">
+                            <p className="text-xs text-muted-foreground opacity-70">
                                 {t('toolbox.tagging.concurrency_hint')}
                             </p>
                         </div>

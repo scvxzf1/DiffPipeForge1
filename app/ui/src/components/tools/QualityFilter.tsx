@@ -253,7 +253,7 @@ export function QualityFilter() {
                                         value={config.blurThreshold}
                                         onChange={(e) => setConfig({ ...config, blurThreshold: e.target.value })}
                                     />
-                                    <p className="text-[10px] text-muted-foreground opacity-70">{t('toolbox.quality.blur_hint')}</p>
+                                    <p className="text-xs text-muted-foreground opacity-70">{t('toolbox.quality.blur_hint')}</p>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-medium text-muted-foreground">{t('toolbox.quality.noise_threshold')}</label>
@@ -262,7 +262,7 @@ export function QualityFilter() {
                                         value={config.maxNoise}
                                         onChange={(e) => setConfig({ ...config, maxNoise: e.target.value })}
                                     />
-                                    <p className="text-[10px] text-muted-foreground opacity-70">{t('toolbox.quality.noise_hint')}</p>
+                                    <p className="text-xs text-muted-foreground opacity-70">{t('toolbox.quality.noise_hint')}</p>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-medium text-muted-foreground">{t('toolbox.quality.min_contrast')}</label>
@@ -271,7 +271,7 @@ export function QualityFilter() {
                                         value={config.minContrast}
                                         onChange={(e) => setConfig({ ...config, minContrast: e.target.value })}
                                     />
-                                    <p className="text-[10px] text-muted-foreground opacity-70">{t('toolbox.quality.min_contrast_hint')}</p>
+                                    <p className="text-xs text-muted-foreground opacity-70">{t('toolbox.quality.min_contrast_hint')}</p>
                                 </div>
                             </div>
                         </div>

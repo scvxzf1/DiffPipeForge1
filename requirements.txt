@@ -39,3 +39,5 @@ imagehash
 google-generativeai
 python-dotenv
 qwen-vl-utils
+modelscope
+huggingface_hub

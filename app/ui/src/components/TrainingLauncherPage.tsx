@@ -210,11 +210,11 @@ export function TrainingLauncherPage({ projectPath }: TrainingLauncherPageProps)
                     {configSummary ? (
                         <div className="space-y-4 flex-1">
                             <div className="bg-white/5 p-3 rounded-xl border border-white/10">
-                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-1">{t('model.type')}</p>
+                                <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-1">{t('model.type')}</p>
                                 <p className="text-sm font-mono truncate">{configSummary.model_type}</p>
                             </div>
                             <div className="bg-white/5 p-3 rounded-xl border border-white/10">
-                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-1">{t('training.epochs')}</p>
+                                <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-1">{t('training.epochs')}</p>
                                 <p className="text-lg font-bold">{configSummary.epochs}</p>
                             </div>
                             <button
@@ -231,12 +231,12 @@ export function TrainingLauncherPage({ projectPath }: TrainingLauncherPageProps)
                                 title={t('common.open_folder') || 'Open Folder'}
                             >
                                 <div className="flex items-center justify-between mb-1">
-                                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{t('training.output_dir')}</p>
+                                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">{t('training.output_dir')}</p>
                                     <FolderOpen className="w-3 h-3 text-muted-foreground group-hover:text-indigo-400 transition-colors" />
                                 </div>
                                 <p className="text-xs truncate text-muted-foreground group-hover:text-foreground transition-colors">{configSummary.output_dir || 'Default'}</p>
                             </button>
-                            <p className="text-[10px] text-muted-foreground italic mt-auto pt-4 border-t border-white/5">
+                            <p className="text-xs text-muted-foreground italic mt-auto pt-4 border-t border-white/5">
                                 * {t('training.setup_hint') || 'Modify these in Training Setup tab.'}
                             </p>
                         </div>

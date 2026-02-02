@@ -202,7 +202,7 @@ export function Deduplication() {
                                     value={threshold}
                                     onChange={(e) => setThreshold(e.target.value)}
                                 />
-                                <p className="text-[10px] text-muted-foreground opacity-70">
+                                <p className="text-xs text-muted-foreground opacity-70">
                                     {t('toolbox.deduplicate.threshold_hint')}
                                 </p>
                             </div>

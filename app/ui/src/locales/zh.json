@@ -222,7 +222,10 @@
             "threads_hint": "并发读取图片的线程数，建议 8-16",
             "started": "风格筛选已启动",
             "finished": "风格筛选已完成",
-            "stopped": "风格筛选已停止"
+            "stopped": "风格筛选已停止",
+            "download_model": "下载模型",
+            "download_confirm": "确定要开始下载 CLIP 模型吗？\n\n- 请确保网络连接正常。",
+            "no_model": "本地未检测到模型，请先点击“下载模型”"
         }
     },
     "monitor": {
