@@ -1,4 +1,4 @@
-import { Database, Activity, Moon, Sun, Settings, Cpu, Rocket, Star } from 'lucide-react';
+import { Database, Activity, Moon, Sun, Settings, Cpu, Rocket, Star, Wrench, Shield } from 'lucide-react';
 
 import { GlassCard } from './ui/GlassCard';
 import { cn } from '@/lib/utils';
@@ -24,8 +24,10 @@ export function Sidebar({ activeTab, onTabChange, theme, onThemeToggle }: Sideba
         { id: 'eval_dataset', label: t('nav.eval_dataset'), icon: Database },
         { id: 'training_setup', label: t('nav.training_setup'), icon: Settings },
         { id: 'training_run', label: t('nav.training_run'), icon: Rocket },
+        { id: 'toolbox', label: t('nav.toolbox') || 'Toolbox', icon: Wrench },
         { id: 'monitor', label: t('nav.monitor'), icon: Activity },
         { id: 'resource_monitor', label: t('nav.resource_monitor'), icon: Cpu },
+        { id: 'system_diagnostics', label: t('nav.system_diagnostics') || '系统诊断', icon: Shield },
     ] as const;
 
     const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);

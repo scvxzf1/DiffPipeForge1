@@ -709,7 +709,8 @@ export function ModelTrainingPage({
                     const beta2 = fullConfig.optimizer.beta2 || '0.99';
                     lines.push(`betas = [${formatValue(beta1)}, ${formatValue(beta2)}]`);
 
-                    if (optType === 'AdamW8bitKahan' && fullConfig.optimizer.stabilize !== undefined) {
+                    const optTypeLower = optType.toLowerCase();
+                    if ((optTypeLower === 'adamw8bitkahan' || optType === 'AdamW8bitKahan') && fullConfig.optimizer.stabilize !== undefined) {
                         lines.push(`stabilize = ${fullConfig.optimizer.stabilize}`);
                     }
                 }

@@ -135,14 +135,14 @@ export function TrainingLogViewer({ projectPath, showTitle = true, integrated = 
             }
         };
 
-        window.ipcRenderer.on('training-output', handleLogs);
-        window.ipcRenderer.on('training-status', handleStatus);
-        window.ipcRenderer.on('training-speed', handleSpeed);
+        const removeLogs = (window.ipcRenderer as any).on('training-output', handleLogs);
+        const removeStatus = (window.ipcRenderer as any).on('training-status', handleStatus);
+        const removeSpeed = (window.ipcRenderer as any).on('training-speed', handleSpeed);
 
         return () => {
-            window.ipcRenderer.off('training-output', handleLogs);
-            window.ipcRenderer.off('training-status', handleStatus);
-            window.ipcRenderer.off('training-speed', handleSpeed);
+            removeLogs();
+            removeStatus();
+            removeSpeed();
         };
     }, [selectedSessionId]);
 

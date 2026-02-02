@@ -48,9 +48,9 @@ export function TrainingLauncherPage({ projectPath }: TrainingLauncherPageProps)
             if (status.type === 'finished' || status.type === 'error') setIsTraining(false);
         };
 
-        window.ipcRenderer.on('training-status', handleStatus);
+        const removeStatus = (window.ipcRenderer as any).on('training-status', handleStatus);
         return () => {
-            window.ipcRenderer.off('training-status', handleStatus);
+            removeStatus();
         };
     }, []);
 

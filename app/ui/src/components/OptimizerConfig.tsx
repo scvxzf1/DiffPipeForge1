@@ -33,9 +33,15 @@ export function OptimizerConfig({ data, onChange }: OptimizerConfigProps) {
 
     const optimizerOptions = [
         { label: 'AdamW Optimi', value: 'adamw_optimi' },
+        { label: 'AdamW', value: 'adamw' },
+        { label: 'AdamW 8-bit', value: 'adamw8bit' },
+        { label: 'AdamW 8-bit Kahan', value: 'adamw8bitkahan' },
+        { label: 'StableAdamW', value: 'stableadamw' },
+        { label: 'SGD', value: 'sgd' },
+        { label: 'CPU Offload (AdamW)', value: 'offload' },
         { label: 'Automagic', value: 'automagic' },
         { label: 'Prodigy', value: 'Prodigy' },
-        { label: 'AdamW 8bit Kahan', value: 'AdamW8bitKahan' }
+        { label: 'GenericOptim', value: 'genericoptim' }
     ];
 
     return (
@@ -48,6 +54,7 @@ export function OptimizerConfig({ data, onChange }: OptimizerConfigProps) {
             <div className="grid gap-6 md:grid-cols-3">
                 <GlassSelect
                     label={t('optimizer.type')}
+                    helpText={t('help.optimizer_type')}
                     name="optimizer_type"
                     value={data.optimizer_type ?? 'adamw_optimi'}
                     onChange={handleChange}
@@ -107,7 +114,7 @@ export function OptimizerConfig({ data, onChange }: OptimizerConfigProps) {
                     </>
                 )}
 
-                {data.optimizer_type === 'AdamW8bitKahan' && (
+                {(data.optimizer_type === 'adamw8bitkahan' || data.optimizer_type === 'AdamW8bitKahan') && (
                     <div className="flex items-center gap-2 mt-8">
                         <input
                             type="checkbox"

@@ -59,7 +59,7 @@ const GlassInput = React.forwardRef<HTMLInputElement, InputProps>(
                                     formatted = "0";
                                     if (showToast) showToast(t('common.auto_corrected_to_zero'));
                                 } else {
-                                    formatted = val.toFixed(20).replace(/\.?0+$/, "");
+                                    formatted = String(val);
                                 }
 
                                 // Only update if different

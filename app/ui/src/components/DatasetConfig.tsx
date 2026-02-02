@@ -7,6 +7,7 @@ import { GlassConfirmDialog } from './ui/GlassConfirmDialog';
 import { useGlassToast } from './ui/GlassToast';
 import { Save, RotateCcw, Plus, Trash2, CheckCircle2, FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { HelpIcon } from './ui/HelpIcon';
 
 interface DatasetConfigProps {
     mode?: 'training' | 'evaluation';
@@ -371,7 +372,10 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
         <div className="space-y-6">
             <GlassCard className="p-6">
                 <div className="mb-6">
-                    <h3 className="text-2xl font-bold">{isTraining ? t('dataset.title') : t('dataset.eval_title')}</h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-2xl font-bold">{isTraining ? t('dataset.title') : t('dataset.eval_title')}</h3>
+                        {!isTraining && <HelpIcon text={t('help.eval_dataset')} />}
+                    </div>
                     <p className="text-sm text-muted-foreground">{isTraining ? t('dataset.desc') : t('dataset.eval_desc')}</p>
                 </div>
 
@@ -389,6 +393,7 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                             <div className="col-span-2 relative">
                                 <GlassInput
                                     label={t('dataset.input_path')}
+                                    helpText={t('help.dataset_input_path')}
                                     name="input_path"
                                     value={formData.input_path}
                                     onChange={handleChange}
@@ -459,6 +464,7 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                                             <div className="md:col-span-4">
                                                 <GlassInput
                                                     label={t('dataset.eval_set_name')}
+                                                    helpText={t('help.eval_set_name')}
                                                     value={set.name}
                                                     onChange={(e) => handleEvalSetNameChange(index, e.target.value)}
                                                     disabled={formData.disable_validation === 'true'}
@@ -467,6 +473,7 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                                             <div className="md:col-span-7 relative">
                                                 <GlassInput
                                                     label={t('dataset.input_path')}
+                                                    helpText={t('help.dataset_input_path')}
                                                     value={set.path}
                                                     onChange={(e) => handleEvalSetPathChange(index, e.target.value)}
                                                     placeholder={t('dataset.validation_path_placeholder')}
@@ -519,6 +526,7 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                                         <div className="flex-1 relative">
                                             <GlassInput
                                                 label=""
+                                                helpText={t('help.control_path')}
                                                 value={path}
                                                 onChange={(e) => handleControlPathChange(index, e.target.value)}
                                                 placeholder={t('dataset.control_path_placeholder')}

@@ -81,13 +81,14 @@ export function StartParamsConfig({ data, onChange }: StartParamsConfigProps) {
                     label={t('start_params.resume_from_checkpoint')}
                     helpText={t('help.resume_from_checkpoint')}
                     name="resume_from_checkpoint"
-                    placeholder="C:\ComfyUI\20260127_18-57-41\global_step900"
+                    placeholder="C:\ComfyUI\20260127_18-57-41"
                     isFolder={true}
                     className="md:col-span-2"
                 />
 
                 <PathInput
                     label={t('start_params.dump_dataset')}
+                    helpText={t('help.dump_dataset')}
                     name="dump_dataset"
                     placeholder="C:\debug\dataset"
                     isFolder={true}
@@ -110,23 +111,35 @@ export function StartParamsConfig({ data, onChange }: StartParamsConfigProps) {
                         </label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" name="cache_only" className="w-4 h-4" checked={!!data.cache_only} onChange={handleChange} />
-                        <label className="text-sm">{t('start_params.cache_only')}</label>
+                        <input type="checkbox" name="cache_only" id="cache_only" className="w-4 h-4" checked={!!data.cache_only} onChange={handleChange} />
+                        <label htmlFor="cache_only" className="text-sm flex items-center gap-1 cursor-pointer">
+                            {t('start_params.cache_only')}
+                            <HelpIcon text={t('help.cache_only')} />
+                        </label>
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" name="reset_dataloader" className="w-4 h-4" checked={!!data.reset_dataloader} onChange={handleChange} />
-                        <label className="text-sm">{t('start_params.reset_dataloader')}</label>
+                        <input type="checkbox" name="reset_dataloader" id="reset_dataloader" className="w-4 h-4" checked={!!data.reset_dataloader} onChange={handleChange} />
+                        <label htmlFor="reset_dataloader" className="text-sm flex items-center gap-1 cursor-pointer">
+                            {t('start_params.reset_dataloader')}
+                            <HelpIcon text={t('help.reset_dataloader')} />
+                        </label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" name="reset_optimizer_params" className="w-4 h-4" checked={!!data.reset_optimizer_params} onChange={handleChange} />
-                        <label className="text-sm">{t('start_params.reset_optimizer_params')}</label>
+                        <input type="checkbox" name="reset_optimizer_params" id="reset_optimizer_params" className="w-4 h-4" checked={!!data.reset_optimizer_params} onChange={handleChange} />
+                        <label htmlFor="reset_optimizer_params" className="text-sm flex items-center gap-1 cursor-pointer">
+                            {t('start_params.reset_optimizer_params')}
+                            <HelpIcon text={t('help.reset_optimizer_params')} />
+                        </label>
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" name="i_know_what_i_am_doing" className="w-4 h-4" checked={!!data.i_know_what_i_am_doing} onChange={handleChange} />
-                        <label className="text-sm text-red-400 font-medium">{t('start_params.i_know_what_i_am_doing')}</label>
+                        <input type="checkbox" name="i_know_what_i_am_doing" id="i_know_what_i_am_doing" className="w-4 h-4" checked={!!data.i_know_what_i_am_doing} onChange={handleChange} />
+                        <label htmlFor="i_know_what_i_am_doing" className="text-sm text-red-400 font-medium flex items-center gap-1 cursor-pointer">
+                            {t('start_params.i_know_what_i_am_doing')}
+                            <HelpIcon text={t('help.i_know_what_i_am_doing')} />
+                        </label>
                     </div>
 
                     {platform !== 'win32' && (

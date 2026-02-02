@@ -33,20 +33,23 @@ export function AdapterConfig({ data, onChange }: AdapterConfigProps) {
         }
     };
 
-    const PathInput = ({ label, name, placeholder, isFolder = false }: { label: string, name: string, placeholder?: string, isFolder?: boolean }) => (
-        <div className="relative">
+    const PathInput = ({ label, helpText, name, placeholder, isFolder = false, disabled = false }: { label: string, helpText?: string, name: string, placeholder?: string, isFolder?: boolean, disabled?: boolean }) => (
+        <div className={`relative ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
             <GlassInput
                 label={label}
+                helpText={helpText}
                 name={name}
                 value={data[name] ?? ''}
                 onChange={handleChange}
                 placeholder={placeholder}
+                disabled={disabled}
             />
             <button
                 type="button"
-                onClick={() => handlePickPath(name, isFolder)}
+                onClick={() => !disabled && handlePickPath(name, isFolder)}
                 className="absolute right-3 bottom-2.5 p-1 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground transition-colors hover:text-primary"
                 title={t('project.open')}
+                disabled={disabled}
             >
                 <FolderOpen className="w-4 h-4" />
             </button>
@@ -68,18 +71,33 @@ export function AdapterConfig({ data, onChange }: AdapterConfigProps) {
         <GlassCard className="p-6">
             <div className="mb-6">
                 <h3 className="text-2xl font-bold">{t('adapter.title')}</h3>
-                <p className="text-sm text-muted-foreground">{t('adapter.desc')}</p>
+                <p className="text-sm text-muted-foreground mb-4">{t('adapter.desc')}</p>
+                {data.adapter_type === 'none' && (
+                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm animate-in fade-in slide-in-from-top-1 duration-300">
+                        {t('adapter.fft_hint')}
+                    </div>
+                )}
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
                 <GlassSelect
                     label={t('adapter.type')}
+                    helpText={t('help.adapter_type')}
                     name="adapter_type"
                     value={data.adapter_type ?? 'lora'}
                     onChange={handleChange}
                     options={adapterOptions}
                 />
-                <GlassInput label={t('adapter.rank')} helpText={t('help.rank')} name="rank" type="number" value={data.rank ?? 32} onChange={handleChange} />
+                <GlassInput
+                    label={t('adapter.rank')}
+                    helpText={t('help.rank')}
+                    name="rank"
+                    type="number"
+                    value={data.rank ?? 32}
+                    onChange={handleChange}
+                    disabled={data.adapter_type === 'none'}
+                    className={data.adapter_type === 'none' ? 'opacity-50' : ''}
+                />
                 <GlassSelect
                     label={t('adapter.dtype')}
                     helpText={t('help.dtype')}
@@ -87,8 +105,16 @@ export function AdapterConfig({ data, onChange }: AdapterConfigProps) {
                     value={data.dtype ?? 'bfloat16'}
                     onChange={handleChange}
                     options={dtypeOptions}
+                    disabled={data.adapter_type === 'none'}
+                    className={data.adapter_type === 'none' ? 'opacity-50' : ''}
                 />
-                <PathInput label={t('adapter.init_from')} name="init_from_existing" placeholder="/path/to/existing_lora" />
+                <PathInput
+                    label={t('adapter.init_from')}
+                    helpText={t('help.init_from_existing')}
+                    name="init_from_existing"
+                    placeholder="/path/to/existing_lora"
+                    disabled={data.adapter_type === 'none'}
+                />
             </div>
         </GlassCard>
     );

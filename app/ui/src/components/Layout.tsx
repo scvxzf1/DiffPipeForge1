@@ -5,6 +5,8 @@ import { ModelTrainingPage } from "./ModelTrainingPage";
 import { MonitorPage } from './MonitorPage';
 import { ResourceMonitor } from './ResourceMonitor';
 import { TrainingLauncherPage } from './TrainingLauncherPage';
+import { ToolboxPage } from './ToolboxPage';
+import { SystemDiagnosticsPage } from './SystemDiagnosticsPage';
 import { GlassConfirmDialog } from "./ui/GlassConfirmDialog";
 import { Home, CheckCircle2, UploadCloud, AlertTriangle, FolderOpen, ChevronDown } from 'lucide-react';
 import { GlassButton } from "./ui/GlassButton";
@@ -12,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useGlassToast } from "./ui/GlassToast";
 import { parse } from "smol-toml";
 
-export type NavItem = 'dataset' | 'eval_dataset' | 'training_setup' | 'training_run' | 'monitor' | 'resource_monitor';
+export type NavItem = 'dataset' | 'eval_dataset' | 'training_setup' | 'training_run' | 'monitor' | 'resource_monitor' | 'toolbox' | 'system_diagnostics';
 
 // Garbage removed
 
@@ -569,6 +571,12 @@ export default function AppLayout({ onBackToHome, projectPath, onProjectRenamed 
                         </div>
                         <div style={{ display: activeTab === 'resource_monitor' ? 'block' : 'none' }}>
                             {activeTab === 'resource_monitor' && <ResourceMonitor />}
+                        </div>
+                        <div style={{ display: activeTab === 'toolbox' ? 'block' : 'none' }}>
+                            {activeTab === 'toolbox' && <ToolboxPage />}
+                        </div>
+                        <div style={{ display: activeTab === 'system_diagnostics' ? 'block' : 'none' }}>
+                            {activeTab === 'system_diagnostics' && <SystemDiagnosticsPage />}
                         </div>
 
                         {/* Dialogs */}

@@ -91,6 +91,7 @@ export function TrainingConfig({ data, modelType, onChange, validationEnabled = 
                     {isVideoModel && (
                         <GlassSelect
                             label={t('training.video_clip_mode')}
+                            helpText={t('help.video_clip_mode')}
                             name="video_clip_mode"
                             value={data.video_clip_mode ?? 'none'}
                             onChange={handleChange}
@@ -123,19 +124,21 @@ export function TrainingConfig({ data, modelType, onChange, validationEnabled = 
                                 <GlassInput label={t('training.image_eval_micro_batch_size_per_gpu')} helpText={t('help.image_eval_micro_batch_size_per_gpu')} name="image_eval_micro_batch_size_per_gpu" type="number" value={data.image_eval_micro_batch_size_per_gpu ?? data.eval_micro_batch_size_per_gpu ?? 1} onChange={handleChange} placeholder={t('common.optional')} />
                                 <GlassInput label={t('training.eval_grad_accumulation')} helpText={t('help.eval_gradient_accumulation_steps')} name="eval_gradient_accumulation_steps" type="number" value={data.eval_gradient_accumulation_steps ?? 1} onChange={handleChange} />
 
-                                <div className="flex items-center gap-2 mt-8">
-                                    <input type="checkbox" name="eval_before_first_step" id="eval_before_first_step" className="w-4 h-4" checked={data.eval_before_first_step !== false} onChange={(e) => onChange({ ...data, eval_before_first_step: e.target.checked })} />
-                                    <label htmlFor="eval_before_first_step" className="text-sm flex items-center gap-1 cursor-pointer">
-                                        {t('training.eval_before_first_step')}
-                                        <HelpIcon text={t('help.eval_before_first_step')} />
-                                    </label>
-                                </div>
-                                <div className="flex items-center gap-2 mt-8">
-                                    <input type="checkbox" name="disable_block_swap_for_eval" id="disable_block_swap_for_eval" className="w-4 h-4" checked={!!data.disable_block_swap_for_eval} onChange={(e) => onChange({ ...data, disable_block_swap_for_eval: e.target.checked })} />
-                                    <label htmlFor="disable_block_swap_for_eval" className="text-sm flex items-center gap-1 cursor-pointer">
-                                        {t('training.disable_block_swap_for_eval')}
-                                        <HelpIcon text={t('help.disable_block_swap_for_eval')} />
-                                    </label>
+                                <div className="flex items-center gap-6 mt-8">
+                                    <div className="flex items-center gap-2">
+                                        <input type="checkbox" name="eval_before_first_step" id="eval_before_first_step" className="w-4 h-4" checked={data.eval_before_first_step !== false} onChange={(e) => onChange({ ...data, eval_before_first_step: e.target.checked })} />
+                                        <label htmlFor="eval_before_first_step" className="text-sm flex items-center gap-1 cursor-pointer">
+                                            {t('training.eval_before_first_step')}
+                                            <HelpIcon text={t('help.eval_before_first_step')} />
+                                        </label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input type="checkbox" name="disable_block_swap_for_eval" id="disable_block_swap_for_eval" className="w-4 h-4" checked={!!data.disable_block_swap_for_eval} onChange={(e) => onChange({ ...data, disable_block_swap_for_eval: e.target.checked })} />
+                                        <label htmlFor="disable_block_swap_for_eval" className="text-sm flex items-center gap-1 cursor-pointer">
+                                            {t('training.disable_block_swap_for_eval')}
+                                            <HelpIcon text={t('help.disable_block_swap_for_eval')} />
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         )}

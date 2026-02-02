@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
@@ -73,6 +73,8 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 let activeBackendProcess: any = null
 let activeTensorboardProcess: any = null
+let activeToolProcess: ChildProcess | null = null;
+let toolLogBuffer: string[] = [];
 
 const SETTINGS_FILE = path.join(APP_ROOT_DIR, 'settings.json');
 
@@ -85,6 +87,14 @@ interface AppSettings {
   language?: string;
   theme?: 'light' | 'dark';
   projectLaunchParams?: Record<string, any>;
+  cachedFingerprint?: {
+    sha256: string;
+    totalFiles: number;
+    totalSize: number;
+    totalSizeFormatted: string;
+    calculatedAt: string;
+  };
+  toolSettings?: Record<string, any>;
 }
 
 const loadSettings = (): AppSettings => {
@@ -249,6 +259,19 @@ app.whenReady().then(() => {
     if (!settings.projectLaunchParams) settings.projectLaunchParams = {};
     const normalized = projectPath.replace(/\\/g, '/').toLowerCase();
     settings.projectLaunchParams[normalized] = params;
+    saveSettings(settings);
+    return { success: true };
+  });
+
+  ipcMain.handle('get-tool-settings', async (_event, toolId: string) => {
+    const settings = loadSettings();
+    return settings.toolSettings?.[toolId] || {};
+  });
+
+  ipcMain.handle('save-tool-settings', async (_event, { toolId, settings: newSettings }) => {
+    const settings = loadSettings();
+    if (!settings.toolSettings) settings.toolSettings = {};
+    settings.toolSettings[toolId] = newSettings;
     saveSettings(settings);
     return { success: true };
   });
@@ -643,6 +666,71 @@ app.whenReady().then(() => {
     }
   })
 
+  // IPC Handler to list images in a directory
+  ipcMain.handle('list-images', async (_event, { dirPath, limit = 20 }) => {
+    try {
+      if (!dirPath || !fs.existsSync(dirPath)) return { success: false, images: [], total: 0 };
+
+      const files = await fs.promises.readdir(dirPath);
+      const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff']);
+
+      const allImages = files
+        .filter(file => imageExtensions.has(path.extname(file).toLowerCase()))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })) // Natural sort
+        .map(file => path.join(dirPath, file));
+
+      const images = allImages.slice(0, limit);
+
+      return { success: true, images, total: allImages.length };
+    } catch (e: any) {
+      console.error("Failed to list images:", e);
+      return { success: false, error: e.message, images: [], total: 0 };
+    }
+  })
+
+  // IPC Handler to get image thumbnail (compressed preview)
+  ipcMain.handle('get-thumbnail', async (_event, filePath: string) => {
+    try {
+      const thumb = await nativeImage.createThumbnailFromPath(filePath, { width: 200, height: 200 });
+      return thumb.toDataURL();
+    } catch (e) {
+      console.error("Failed to generate thumbnail for:", filePath, e);
+      // Fallback to file URL if thumbnail fails
+      return pathToFileURL(filePath).href;
+    }
+  })
+
+  // IPC Handler to read caption file matching an image
+  ipcMain.handle('read-caption', async (_event, imagePath: string) => {
+    try {
+      const ext = path.extname(imagePath);
+      const captionPath = imagePath.replace(ext, '.txt');
+
+      if (fs.existsSync(captionPath)) {
+        const content = await fs.promises.readFile(captionPath, 'utf-8');
+        return { exists: true, content: content.trim() };
+      }
+      return { exists: false, content: '' };
+    } catch (e) {
+      console.error("Failed to read caption for:", imagePath, e);
+      return { exists: false, content: '' };
+    }
+  })
+
+  // IPC Handler to write/update caption file
+  ipcMain.handle('write-caption', async (_event, { imagePath, content }: { imagePath: string, content: string }) => {
+    try {
+      const ext = path.extname(imagePath);
+      const captionPath = imagePath.replace(ext, '.txt');
+
+      await fs.promises.writeFile(captionPath, content, 'utf-8');
+      return { success: true };
+    } catch (e) {
+      console.error("Failed to write caption for:", imagePath, e);
+      return { success: false, error: String(e) };
+    }
+  })
+
   // IPC Handler to kill backend
   ipcMain.handle('kill-backend', async () => {
     if (activeBackendProcess) {
@@ -786,6 +874,186 @@ app.whenReady().then(() => {
       return { success: false, error: String(e) };
     }
   })
+
+  // --- Fingerprint / System Diagnostics IPC ---
+  ipcMain.handle('calculate-python-fingerprint', async (_event) => {
+    try {
+      const { projectRoot } = resolveModelsRoot();
+      const pythonEnvPath = path.join(projectRoot, 'python_embeded_DP');
+
+      if (!fs.existsSync(pythonEnvPath)) {
+        return { error: `Python environment not found at: ${pythonEnvPath}` };
+      }
+
+      const crypto = require('crypto');
+      const allFiles: { path: string; size: number; sha256: string }[] = [];
+      let totalSize = 0;
+      let processedCount = 0;
+
+      // Async hash calculation using streams (prevents memory issues with large files)
+      const calcFileHashAsync = (filePath: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const hash = crypto.createHash('sha256');
+          const stream = fs.createReadStream(filePath, { highWaterMark: 64 * 1024 }); // 64KB chunks
+          stream.on('data', (chunk: string | Buffer) => hash.update(chunk));
+          stream.on('end', () => resolve(hash.digest('hex')));
+          stream.on('error', reject);
+        });
+      };
+
+      // Collect all file paths first (lightweight operation)
+      const filePaths: { fullPath: string; relativePath: string }[] = [];
+      const excludePatterns = ['__pycache__', '.pyc', '.git', '.log'];
+
+      const collectFiles = (dir: string, basePath: string) => {
+        try {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            const relativePath = path.relative(basePath, fullPath).replace(/\\/g, '/');
+
+            // Match Python's exclusion logic: check if pattern appears anywhere in path
+            // Python: "if pattern in rel_path.parts or pattern in rel_path_str"
+            let shouldExclude = false;
+            for (const pattern of excludePatterns) {
+              if (relativePath.includes(pattern)) {
+                shouldExclude = true;
+                break;
+              }
+            }
+            if (shouldExclude) continue;
+
+            if (entry.isDirectory()) {
+              collectFiles(fullPath, basePath);
+            } else if (entry.isFile()) {
+              filePaths.push({ fullPath, relativePath });
+            }
+          }
+        } catch (e) {
+          console.error(`[Fingerprint] Error scanning dir: ${dir}`, e);
+        }
+      };
+
+      collectFiles(pythonEnvPath, pythonEnvPath);
+      const totalFiles = filePaths.length;
+
+      console.log(`[Fingerprint] Found ${totalFiles} files to process`);
+
+      // Process files in batches to avoid overwhelming the system
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+        const batch = filePaths.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(batch.map(async ({ fullPath, relativePath }) => {
+          try {
+            const stats = await fs.promises.stat(fullPath);
+            const hash = await calcFileHashAsync(fullPath);
+            allFiles.push({ path: relativePath, size: stats.size, sha256: hash });
+            totalSize += stats.size;
+          } catch (e) {
+            console.error(`[Fingerprint] Error processing: ${fullPath}`, e);
+          }
+        }));
+
+        processedCount += batch.length;
+
+        // Send progress to renderer (optional)
+        if (processedCount % 200 === 0 || processedCount === totalFiles) {
+          console.log(`[Fingerprint] Progress: ${processedCount}/${totalFiles}`);
+        }
+      }
+
+      // Sort files for consistent ordering (must match Python's sorted() behavior)
+      // Use simple string comparison instead of localeCompare for exact match
+      allFiles.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+
+      // Compute combined SHA256 using same algorithm as package_app.py
+      // Format: "relative_path:sha256_hash" for each file
+      const combinedHash = crypto.createHash('sha256');
+      for (const file of allFiles) {
+        const combinedStr = `${file.path}:${file.sha256}`;
+        combinedHash.update(combinedStr);
+      }
+      const sha256 = combinedHash.digest('hex');
+
+      // Format size
+      const formatSize = (bytes: number): string => {
+        if (bytes >= 1024 * 1024 * 1024) return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        if (bytes >= 1024) return (bytes / 1024).toFixed(2) + ' KB';
+        return bytes + ' B';
+      };
+
+      console.log(`[Fingerprint] Completed. Files: ${allFiles.length}, Size: ${formatSize(totalSize)}`);
+
+      return {
+        totalFiles: allFiles.length,
+        totalSize,
+        totalSizeFormatted: formatSize(totalSize),
+        sha256,
+        files: allFiles.slice(0, 100) // Return first 100 files for debugging
+      };
+    } catch (e: any) {
+      console.error('[Fingerprint] Error:', e);
+      return { error: e.message };
+    }
+  });
+
+  ipcMain.handle('get-official-fingerprint', async () => {
+    try {
+      const { projectRoot } = resolveModelsRoot();
+      const officialPath = path.join(projectRoot, 'fingerprints', 'official.json');
+
+      if (!fs.existsSync(officialPath)) {
+        console.log(`[Fingerprint] Official fingerprint not found at: ${officialPath}`);
+        return null;
+      }
+
+      const content = fs.readFileSync(officialPath, 'utf-8');
+      const official = JSON.parse(content);
+      return {
+        sha256: official.combined_sha256 || official.sha256,
+        totalFiles: official.total_files,
+        version: official.version || '1.0.0',
+        generatedAt: official.generated_at
+      };
+    } catch (e: any) {
+      console.error('[Fingerprint] Error reading official:', e);
+      return null;
+    }
+  });
+
+  // Save fingerprint result to settings (so it persists between sessions)
+  ipcMain.handle('save-fingerprint-cache', async (_event, fingerprint: {
+    sha256: string;
+    totalFiles: number;
+    totalSize: number;
+    totalSizeFormatted: string;
+  }) => {
+    try {
+      const settings = loadSettings();
+      settings.cachedFingerprint = {
+        ...fingerprint,
+        calculatedAt: new Date().toISOString()
+      };
+      saveSettings(settings);
+      return { success: true };
+    } catch (e: any) {
+      console.error('[Fingerprint] Error saving cache:', e);
+      return { success: false, error: e.message };
+    }
+  });
+
+  // Get cached fingerprint from settings
+  ipcMain.handle('get-fingerprint-cache', async () => {
+    try {
+      const settings = loadSettings();
+      return settings.cachedFingerprint || null;
+    } catch (e: any) {
+      console.error('[Fingerprint] Error loading cache:', e);
+      return null;
+    }
+  });
 
   // IPC Handler to repair python environment
   ipcMain.handle('fix-python-env', async (_event) => {
@@ -1262,6 +1530,14 @@ app.whenReady().then(() => {
       console.error("Check file exists error:", e);
       return false;
     }
+  });
+
+  ipcMain.handle('open-path', async (_event, pathStr: string) => {
+    if (!pathStr || !fs.existsSync(pathStr)) {
+      return { success: false, error: '路径不存在' };
+    }
+    shell.openPath(pathStr);
+    return { success: true };
   });
 
   // IPC Handler to read a single file
@@ -1941,6 +2217,115 @@ enable_ar_bucket = true
       return [];
     }
   });
+
+  // --- Toolbox IPC ---
+  let activeToolScriptName: string | null = null;
+  let isManuallyStopped = false;
+  ipcMain.handle('run-tool', async (_event, { scriptName, args = [] }: { scriptName: string, args: string[] }) => {
+    if (activeToolProcess) {
+      return { success: false, error: "已有工具正在运行中" };
+    }
+
+    return new Promise((resolve) => {
+      try {
+        const { projectRoot } = resolveModelsRoot();
+        const pythonExe = getPythonExe(projectRoot);
+        const toolsDir = path.join(projectRoot, 'tools');
+        const scriptPath = path.join(toolsDir, scriptName);
+
+        if (!fs.existsSync(scriptPath)) {
+          resolve({ success: false, error: `找不到工具脚本: ${scriptName}` });
+          return;
+        }
+
+        toolLogBuffer = [];
+        activeToolScriptName = scriptName;
+        isManuallyStopped = false;
+        console.log(`[Toolbox] Running: ${pythonExe} ${scriptPath} ${args.join(' ')}`);
+
+        activeToolProcess = spawn(pythonExe, [scriptPath, ...args], {
+          cwd: toolsDir,
+          env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
+        });
+
+        activeToolProcess.stdout?.on('data', (data) => {
+          const str = data.toString();
+          console.log(`[Tool Out]: ${str}`);
+          _event.sender.send('tool-output', str);
+          toolLogBuffer.push(str);
+          if (toolLogBuffer.length > 1000) toolLogBuffer.shift();
+        });
+
+        activeToolProcess.stderr?.on('data', (data) => {
+          const str = data.toString();
+          console.error(`[Tool Err]: ${str}`);
+          _event.sender.send('tool-output', str);
+          toolLogBuffer.push(str);
+          if (toolLogBuffer.length > 1000) toolLogBuffer.shift();
+        });
+
+        activeToolProcess.on('close', (code) => {
+          const timestamp = new Date().toLocaleTimeString();
+          const isSuccess = code === 0 && !isManuallyStopped;
+          const msg = `\n--- [${timestamp}] Task ${isSuccess ? 'Finished' : (isManuallyStopped ? 'Stopped' : 'Failed')} (Code ${code}) ---\n`;
+          console.log(`[Toolbox] Process exited with code ${code}`);
+
+          if (win) {
+            win.webContents.send('tool-output', msg);
+          }
+          toolLogBuffer.push(msg);
+
+          const scriptName = activeToolScriptName;
+          activeToolProcess = null;
+          activeToolScriptName = null;
+
+          if (win) {
+            win.webContents.send('tool-status', { type: 'finished', code, isSuccess, scriptName });
+          }
+          isManuallyStopped = false;
+        });
+
+        activeToolProcess.on('error', (err) => {
+          console.error(`[Toolbox] Spawn error:`, err);
+          activeToolProcess = null;
+          resolve({ success: false, error: err.message });
+        });
+
+        resolve({ success: true, pid: activeToolProcess.pid });
+
+      } catch (e: any) {
+        console.error("[Toolbox] Start failed:", e);
+        resolve({ success: false, error: e.message });
+      }
+    });
+  });
+
+  ipcMain.handle('stop-tool', async () => {
+    if (activeToolProcess) {
+      try {
+        if (process.platform === 'win32') {
+          exec(`taskkill /pid ${activeToolProcess.pid} /T /F`);
+        } else {
+          activeToolProcess.kill('SIGKILL');
+        }
+        isManuallyStopped = true;
+        activeToolProcess = null;
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle('get-tool-status', async () => {
+    return { isRunning: !!activeToolProcess, pid: activeToolProcess?.pid, scriptName: activeToolScriptName };
+  });
+
+  ipcMain.handle('get-tool-logs', async () => {
+    return toolLogBuffer;
+  });
+
 
 
   const RECENT_PROJECTS_FILE = path.join(app.getPath('userData'), 'recent_projects.json');

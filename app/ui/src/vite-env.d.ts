@@ -7,3 +7,14 @@ declare namespace JSX {
         'theme-button': any;
     }
 }
+declare global {
+    interface Window {
+        ipcRenderer: {
+            send(channel: string, ...args: any[]): void;
+            invoke(channel: string, ...args: any[]): Promise<any>;
+            on(channel: string, func: (...args: any[]) => void): () => void;
+            off(channel: string, func: (...args: any[]) => void): void;
+            removeAllListeners(channel: string): void;
+        };
+    }
+}

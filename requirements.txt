@@ -33,3 +33,9 @@ wheel
 ninja
 pynvml
 sentry_sdk
+# Tools Dependencies
+opencv-python
+imagehash
+google-generativeai
+python-dotenv
+qwen-vl-utils

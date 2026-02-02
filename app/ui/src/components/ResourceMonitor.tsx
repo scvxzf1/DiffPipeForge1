@@ -72,13 +72,11 @@ export function ResourceMonitor() {
             });
         };
 
-        // @ts-ignore
-        window.ipcRenderer.on('resource-stats', handleStats);
+        const removeStats = (window.ipcRenderer as any).on('resource-stats', handleStats);
 
         return () => {
             // DON'T stop monitor on unmount to keep it running in background
-            // @ts-ignore
-            window.ipcRenderer.off('resource-stats', handleStats);
+            removeStats();
         };
     }, []);
 
