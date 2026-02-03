@@ -74,23 +74,29 @@ const PathInput = ({
 export function ModelConfig({ data, onChange }: ModelConfigProps) {
     const { t } = useTranslation();
     const [modelType, setModelType] = useState('sdxl');
-    const [qwenVariant, setQwenVariant] = useState<'qwen_image' | 'qwen_2509' | 'qwen_2511' | 'qwen_2512'>('qwen_image');
+    const [qwenVariant, setQwenVariant] = useState<'qwen_image' | 'qwen_edit' | 'qwen_2509' | 'qwen_2511' | 'qwen_2512'>('qwen_image');
 
+    // Initialize default if empty / Sync internal state with props
     // Initialize default if empty / Sync internal state with props
     useEffect(() => {
         if (data.model_type && data.model_type !== modelType) {
             setModelType(data.model_type);
-            // Sync qwen variant state
-            if (data.model_type === 'qwen2511') {
-                setQwenVariant('qwen_2511');
-            } else if (data.model_type === 'qwen_image' && qwenVariant === 'qwen_2511') {
-                // If switching back to qwen_image from external change, reset to default variant
-                setQwenVariant('qwen_image');
-            }
+        }
+
+        // Sync qwen variant state based on model type OR explicit version
+        if (data.model_type === 'qwen2511') {
+            setQwenVariant('qwen_2511');
+        } else if (data.model_type === 'qwen_image') {
+            // Check version to distinguish between variants
+            if (data.model_version === 'qwen_edit') setQwenVariant('qwen_edit');
+            else if (data.model_version === 'qwen_2509') setQwenVariant('qwen_2509');
+            else if (data.model_version === 'qwen_2512') setQwenVariant('qwen_2512');
+            else if (data.model_version === 'qwen_image') setQwenVariant('qwen_image');
+            else if (qwenVariant === 'qwen_2511') setQwenVariant('qwen_image'); // Fallback if coming from 2511
         } else if (!data.model_type) {
             onChange({ ...data, model_type: 'sdxl', dtype: 'bfloat16' });
         }
-    }, [data.model_type]);
+    }, [data.model_type, data.model_version]);
 
     const modelTypes = [
         { label: 'SDXL', value: 'sdxl' },
@@ -189,7 +195,7 @@ export function ModelConfig({ data, onChange }: ModelConfigProps) {
         onChange({ ...data, [e.target.name]: value });
     };
 
-    const handleQwenVariantChange = (variant: 'qwen_image' | 'qwen_2509' | 'qwen_2511' | 'qwen_2512') => {
+    const handleQwenVariantChange = (variant: 'qwen_image' | 'qwen_edit' | 'qwen_2509' | 'qwen_2511' | 'qwen_2512') => {
         setQwenVariant(variant);
         // 2511 uses a different model type
         const newModelType = variant === 'qwen_2511' ? 'qwen2511' : 'qwen_image';
@@ -201,6 +207,7 @@ export function ModelConfig({ data, onChange }: ModelConfigProps) {
         onChange({
             ...data,
             model_type: newModelType,
+            model_version: variant, // explicit version for qwen variants
             ...defaults
         });
     };
@@ -504,21 +511,39 @@ export function ModelConfig({ data, onChange }: ModelConfigProps) {
                             >
                                 2512
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => handleQwenVariantChange('qwen_edit')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${qwenVariant === 'qwen_edit' ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50' : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'}`}
+                            >
+                                Edit
+                            </button>
                         </div>
 
                         {/* Fields based on variant */}
+                        {/* Fields based on variant */}
                         <PathInput label={t('model.model_config_path')} helpText={t('help.model_config_path')} name="model_config_path" data={data} handleChange={handleChange} handlePickPath={handlePickPath} openTitle={t('project.open')} placeholder={t('common.optional')} />
                         <PathInput label={t('model.diffusers_path')} helpText={t('help.diffusers_path')} name="diffusers_path" data={data} handleChange={handleChange} handlePickPath={handlePickPath} openTitle={t('project.open')}
-                            placeholder={qwenVariant === 'qwen_2511' ? 'Qwen-Image-Edit-2511' : qwenVariant === 'qwen_2509' ? 'Qwen-Image-Edit-2509 folder' : `${t('common.optional')} Qwen-Image folder`} isFolder={true} />
+                            placeholder={
+                                qwenVariant === 'qwen_2511' ? 'Qwen-Image-Edit-2511' :
+                                    qwenVariant === 'qwen_2509' ? 'Qwen-Image-Edit-2509 folder' :
+                                        qwenVariant === 'qwen_edit' ? 'Qwen-Image-Edit folder' :
+                                            `${t('common.optional')} Qwen-Image folder`
+                            } isFolder={true} />
                         <PathInput label={t('model.transformer_path')} helpText={t('help.transformer_path')} name="transformer_path" data={data} handleChange={handleChange} handlePickPath={handlePickPath} openTitle={t('project.open')}
-                            placeholder={qwenVariant === 'qwen_2511' ? `${t('common.optional')} qwen_image_edit_2511_bf16.safetensors` : qwenVariant === 'qwen_2509' ? `${t('common.optional')} qwen_image_edit_2509.safetensors` : `${t('common.optional')} qwen_image_bf16.safetensors`} />
+                            placeholder={
+                                qwenVariant === 'qwen_2511' ? `${t('common.optional')} qwen_image_edit_2511_bf16.safetensors` :
+                                    qwenVariant === 'qwen_2509' ? `${t('common.optional')} qwen_image_edit_2509.safetensors` :
+                                        qwenVariant === 'qwen_edit' ? `${t('common.optional')} qwen_image_edit_bf16.safetensors` :
+                                            `${t('common.optional')} qwen_image_bf16.safetensors`
+                            } />
                         <PathInput label={t('model.text_encoder_path')} helpText={t('help.text_encoder_path')} name="text_encoder_path" data={data} handleChange={handleChange} handlePickPath={handlePickPath} openTitle={t('project.open')}
                             placeholder={`${t('common.optional')} qwen_2.5_vl_7b.safetensors`} />
                         <PathInput label={t('model.vae_path')} helpText={t('help.vae_path')} name="vae_path" data={data} handleChange={handleChange} handlePickPath={handlePickPath} openTitle={t('project.open')}
-                            placeholder={(qwenVariant === 'qwen_2511' || qwenVariant === 'qwen_2509') ? `${t('common.optional')} qwen_image_vae.safetensors` : `${t('common.optional')} Diffusers VAE required`} />
+                            placeholder={(qwenVariant === 'qwen_2511' || qwenVariant === 'qwen_2509' || qwenVariant === 'qwen_edit') ? `${t('common.optional')} qwen_image_vae.safetensors` : `${t('common.optional')} Diffusers VAE required`} />
                         <GlassSelect label={t('model_load.dtype')} helpText={t('help.dtype')} name="dtype" value={data.dtype || 'bfloat16'} onChange={handleChange} options={DTYPE_OPTIONS} />
                         <GlassSelect label={t('model_load.transformer_dtype')} helpText={t('help.transformer_dtype')} name="transformer_dtype" value={data.transformer_dtype || ((qwenVariant === 'qwen_2511' || qwenVariant === 'qwen_2509') ? 'bfloat16' : 'float8')} onChange={handleChange} options={TRANSFORMER_DTYPE_OPTIONS} />
-                        {(qwenVariant === 'qwen_image' || qwenVariant === 'qwen_2512') && (
+                        {(qwenVariant === 'qwen_image' || qwenVariant === 'qwen_2512' || qwenVariant === 'qwen_edit') && (
                             <GlassSelect label={t('model_load.timestep_sample_method')} helpText={t('help.timestep_sample_method')} name="timestep_sample_method" value={data.timestep_sample_method || 'logit_normal'} onChange={handleChange} options={TIMESTEP_SAMPLE_OPTIONS} />
                         )}
                     </>

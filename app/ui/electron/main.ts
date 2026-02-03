@@ -2355,9 +2355,10 @@ enable_ar_bucket = true
         // Helper to clean logs
         const cleanLog = (data: any) => {
           let str = data.toString();
-          // Remove ANSI codes
           str = str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
-          // Handle carriage returns by taking the last line if multiple
+
+          str = str.replace(/\r\n/g, '\n');
+
           if (str.includes('\r')) {
             const lines = str.split('\r');
             str = lines[lines.length - 1];

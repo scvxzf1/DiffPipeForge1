@@ -59,8 +59,8 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
     const isFirstRender = useRef(true);
 
     const isVideoModel = ['hunyuan_video', 'ltx_video', 'wan21', 'wan22', 'hunyuan_video_15', 'cosmos'].includes(modelType || '');
-    const isEditingModel = modelType === 'flux_kontext' ||
-        (modelType === 'qwen_image' && ['qwen_edit', 'qwen_edit_2509', 'qwen_edit_2511'].includes(modelVersion || ''));
+    const isEditingModel = modelType === 'flux_kontext' || modelType === 'qwen2511' ||
+        (modelType === 'qwen_image' && ['qwen_edit', 'qwen_2509'].includes(modelVersion || ''));
 
     React.useEffect(() => {
         // Special handling for evaluation mode: if no config is imported, it implies validation is disabled

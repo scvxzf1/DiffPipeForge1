@@ -16,6 +16,11 @@ python aspect_ratio_stats.py <图像目录路径> --output my_stats.json
 """
 
 
+import sys
+import io
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 import os
 import argparse
 from pathlib import Path
@@ -259,7 +264,7 @@ def main():
         "max": max(ratio_list) if ratio_list else 0,
         "distribution": sorted_stats_for_json(stats, ratio_list)
     }
-    print(f"\n__ASPECT_STATS_JSON_START__\n{json.dumps(results, ensure_ascii=False)}\n__ASPECT_STATS_JSON_END__")
+    print(f"\n__ASPECT_STATS_JSON_START__\n{json.dumps(results, ensure_ascii=False)}\n__ASPECT_STATS_JSON_END__", flush=True)
 
 
 if __name__ == '__main__':
