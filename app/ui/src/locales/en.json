@@ -56,7 +56,8 @@
         "no_images_found": "No supported images found in this directory",
         "load_more": "Load More",
         "restore_selected": "Restore",
-        "stop_download": "Stop Download"
+        "stop_download": "Stop Download",
+        "shift_click_hint": "Tip: Shift + Left Click to select range"
     },
     "about": {
         "title": "About App",

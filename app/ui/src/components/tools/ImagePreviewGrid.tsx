@@ -119,6 +119,11 @@ export function ImagePreviewGrid({
                     <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                         {images.length} / {total}
                     </span>
+                    {isRestorable && (
+                        <span className="text-[10px] text-muted-foreground/70 ml-2 font-normal">
+                            {t('common.shift_click_hint')}
+                        </span>
+                    )}
                 </h3>
             </div>
 

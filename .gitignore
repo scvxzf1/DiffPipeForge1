@@ -126,3 +126,5 @@ package_app.bat
 package_app.py
 
 tools/filter_style/clip-vit-base-patch32/
+DiffPipeForge_v1.0.0_Full_Portable.zip.sha256
+Update Packaging Logic.md

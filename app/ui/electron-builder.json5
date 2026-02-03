@@ -29,6 +29,23 @@
       "from": "../examples",
       "to": "app/examples",
       "filter": ["**/*"]
+    },
+    {
+      "from": "../../tools",
+      "to": "tools",
+      "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc", "!filter_style/clip-vit-base-patch32/**"]
+    },
+    {
+      "from": "../../supported_models.md",
+      "to": "supported_models.md"
+    },
+    {
+      "from": "../../supported_models_cn.md",
+      "to": "supported_models_cn.md"
+    },
+    {
+      "from": "../../LICENSE",
+      "to": "LICENSE"
     }
   ],
   "win": {

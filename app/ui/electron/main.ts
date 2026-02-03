@@ -120,7 +120,7 @@ const saveSettings = (settings: AppSettings) => {
 function createWindow() {
   console.log("createWindow called");
   win = new BrowserWindow({
-    width: 1200,
+    width: 1290,
     height: 900,
     icon: path.join(process.env.VITE_PUBLIC, 'icon.ico'),
     webPreferences: {
@@ -914,10 +914,27 @@ app.whenReady().then(() => {
   ipcMain.handle('calculate-python-fingerprint', async (_event) => {
     try {
       const { projectRoot } = resolveModelsRoot();
-      const pythonEnvPath = path.join(projectRoot, 'python_embeded_DP');
+      const pythonExe = getPythonExe(projectRoot);
+
+      if (!pythonExe || pythonExe === 'python' || pythonExe === 'python3') {
+        return { error: "Cannot calculate fingerprint for System Python. Please use a portable or virtual environment." };
+      }
+
+      if (!fs.existsSync(pythonExe)) {
+        return { error: `Active Python executable not found: ${pythonExe}` };
+      }
+
+      // Determine environment root
+      // If inside Scripts (Windows) or bin (Linux/Mac), go up one level
+      let pythonEnvPath = path.dirname(pythonExe);
+      if (path.basename(pythonEnvPath).toLowerCase() === 'scripts' || path.basename(pythonEnvPath).toLowerCase() === 'bin') {
+        pythonEnvPath = path.dirname(pythonEnvPath);
+      }
+
+      console.log(`[Fingerprint] Calculating for user selected env: ${pythonEnvPath}`);
 
       if (!fs.existsSync(pythonEnvPath)) {
-        return { error: `Python environment not found at: ${pythonEnvPath}` };
+        return { error: `Python environment root not found at: ${pythonEnvPath}` };
       }
 
       const crypto = require('crypto');
@@ -1467,7 +1484,7 @@ app.whenReady().then(() => {
       }
     }
 
-    return {
+    const result = {
       success: true,
       path: pythonExe || '',
       displayName,
@@ -1475,6 +1492,17 @@ app.whenReady().then(() => {
       isInternal: pythonExe === embeddedDP,
       availableEnvs
     };
+
+    if (win) {
+      win.webContents.send('python-status-changed', {
+        path: result.path,
+        displayName: result.displayName,
+        status: result.status,
+        isInternal: result.isInternal
+      });
+    }
+
+    return result;
   });
 
   // IPC to manually pick python exe (Fallback/Other option)
@@ -1505,13 +1533,24 @@ app.whenReady().then(() => {
         else displayName = path.basename(path.dirname(pythonExe));
       }
 
-      return {
+      const response = {
         success: true,
         path: pythonExe || '',
         displayName,
         status: isReady ? 'ready' : 'missing',
         isInternal: pythonExe === embeddedDP
       };
+
+      if (win) {
+        win.webContents.send('python-status-changed', {
+          path: response.path,
+          displayName: response.displayName,
+          status: response.status,
+          isInternal: response.isInternal
+        });
+      }
+
+      return response;
     }
     return { canceled: true };
   });
@@ -1555,6 +1594,24 @@ app.whenReady().then(() => {
     });
   });
 
+
+  // IPC Handler to check style filter model
+  ipcMain.handle('check-style-model', async () => {
+    const { projectRoot } = resolveModelsRoot();
+    const modelPath = path.join(projectRoot, 'tools', 'filter_style', 'clip-vit-base-patch32');
+    try {
+      if (!fs.existsSync(modelPath)) return false;
+      // Check for essential files: config.json and pytorch_model.bin or model.safetensors
+      const configJson = path.join(modelPath, 'config.json');
+      const modelBin = path.join(modelPath, 'pytorch_model.bin');
+      const modelSafe = path.join(modelPath, 'model.safetensors');
+
+      return fs.existsSync(configJson) && (fs.existsSync(modelBin) || fs.existsSync(modelSafe));
+    } catch (error) {
+      console.error("Error checking style model:", error);
+      return false;
+    }
+  });
 
   // IPC Handler to check file existence (Robust check)
   ipcMain.handle('check-file-exists', async (_event, filePath: string) => {

@@ -60,6 +60,20 @@ export function SystemDiagnosticsPage() {
             }
         };
         loadCached();
+
+        const handleStatusChange = (_event: any, status: any) => {
+            setPythonPath(status.path);
+            // Reset fingerprint state as environment has changed
+            setFingerprint(null);
+            setCalculatedAt(null);
+            // Re-fetch official fingerprint in case logic depends on env (though currently it doesn't)
+            // But we should allow user to re-calculate
+        };
+
+        window.ipcRenderer.on('python-status-changed', handleStatusChange);
+        return () => {
+            window.ipcRenderer.removeListener('python-status-changed', handleStatusChange);
+        };
     }, []);
 
     const handleCalculate = async () => {

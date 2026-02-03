@@ -56,7 +56,8 @@
         "no_images_found": "该目录下未找到支持的图片文件",
         "load_more": "展开更多",
         "restore_selected": "恢复所选",
-        "stop_download": "停止下载"
+        "stop_download": "停止下载",
+        "shift_click_hint": "提示：按住 Shift + 左键可批量选择"
     },
     "about": {
         "title": "关于软件",

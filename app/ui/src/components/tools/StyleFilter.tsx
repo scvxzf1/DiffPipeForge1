@@ -108,6 +108,13 @@ export function StyleFilter() {
             return;
         }
 
+        // Check if model exists
+        const modelExists = await window.ipcRenderer.invoke('check-style-model');
+        if (!modelExists) {
+            showToast(t('toolbox.style_filter.no_model'), 'error');
+            return;
+        }
+
         setActiveTask('filtering');
         const listener = (_event: any, data: string) => {
             setLogs(prev => [...prev, data]);
@@ -122,7 +129,7 @@ export function StyleFilter() {
                     '--keep', settings.keep,
                     '--remove', settings.remove,
                     '--batch-size', settings.batchSize,
-                    '--model', 'openai/clip-vit-base-patch32',
+                    '--model', 'filter_style/clip-vit-base-patch32',
                     '--threads', settings.threads
                 ]
             });
