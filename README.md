@@ -31,7 +31,7 @@
 
 - **🚀 Extensive Model Support**: support for a wide range of architectures including:
   - **Video Models**: LTX-Video, Hunyuan Video (1.0 & 1.5), Wan (2.1 & 2.2), Cosmos.
-  - **Image Models**: Flux (Dev/Schnell), SDXL, Lumina 2.0, SD3/3.5, Qwen-Image.
+  - **Image Models**: Flux (Dev/Schnell), SDXL, Lumina 2.0, SD3/3.5, Qwen-Image, Flux 2(dev/klein)
   - **Specialized Models**: Chroma, HiDream, OmniGen2, AuraFlow, Z-Image.
 - **📊 Advanced Dataset Management**:
   - Flexible support for both image and video datasets.
@@ -57,7 +57,8 @@ DiffPipeForge/
 ├── app/                # Main application code (Electron/React)
 ├── train_config/       # Default directory for configuration files
 ├── output/             # Training outputs (checkpoints, logs, configs)
-├── start.bat           # Main entry point to launch the app
+├── start.bat           # Windows entry point
+├── start.sh            # Linux entry point
 └── requirements.txt    # Python dependencies
 ```
 
@@ -84,10 +85,17 @@ DiffPipeForge/
 
 ### Launching the App
 
+#### Windows
 Simply run the `start.bat` file in the project root:
-
 ```bash
 ./start.bat
+```
+
+#### Linux
+Run the `start.sh` script in the project root:
+```bash
+chmod +x start.sh
+./start.sh
 ```
 
 ### Your First Training Session

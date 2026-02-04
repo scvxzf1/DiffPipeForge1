@@ -31,7 +31,7 @@
 
 - **🚀 广泛的模型支持**：支持多种架构，包括：
   - **视频模型**：LTX-Video, Hunyuan Video (1.0 & 1.5), Wan (2.1 & 2.2), Cosmos。
-  - **图像模型**：Flux (Dev/Schnell), SDXL, Lumina 2.0, SD3/3.5, Qwen-Image。
+  - **图像模型**：Flux (Dev/Schnell), SDXL, Lumina 2.0, SD3/3.5, Qwen-Image，Flux 2(dev/klein)
   - **专用模型**：Chroma, HiDream, OmniGen2, AuraFlow, Z-Image。
 - **📊 先进的数据集管理**：
   - 灵活支持图像和视频数据集。
@@ -57,7 +57,8 @@ DiffPipeForge/
 ├── app/                # 主应用程序代码 (Electron/React)
 ├── train_config/       # 默认配置文件目录
 ├── output/             # 训练输出（检查点、日志、配置文件）
-├── start.bat           # 启动应用程序的主入口
+├── start.bat           # Windows 启动入口
+├── start.sh            # Linux 启动入口
 └── requirements.txt    # Python 依赖项
 ```
 
@@ -82,9 +83,17 @@ DiffPipeForge/
 
 ### 启动应用
 
+#### Windows
 直接运行根目录下的 `start.bat` 文件：
 ```bash
 ./start.bat
+```
+
+#### Linux
+在根目录下运行 `start.sh` 脚本：
+```bash
+chmod +x start.sh
+./start.sh
 ```
 
 ### 开启第一次训练
