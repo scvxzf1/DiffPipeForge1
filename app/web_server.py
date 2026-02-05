@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import threading
+import socketserver
 from urllib.parse import urlparse, parse_qs
 
 PORT = 5001
@@ -154,10 +155,14 @@ class IPCHandler(http.server.BaseHTTPRequestHandler):
                 pass
         return {}
 
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    """Handle requests in a separate thread."""
+    daemon_threads = True
+
 def run_server():
     server_address = ('', PORT)
-    httpd = http.server.HTTPServer(server_address, IPCHandler)
-    print(f"Starting Web Bridge on port {PORT}...")
+    httpd = ThreadedHTTPServer(server_address, IPCHandler)
+    print(f"Starting Multi-threaded Web Bridge on port {PORT}...")
     httpd.serve_forever()
 
 if __name__ == "__main__":
