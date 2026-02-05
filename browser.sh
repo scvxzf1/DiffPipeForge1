@@ -39,6 +39,9 @@ BRIDGE_PID=$!
 
 trap "kill $BRIDGE_PID 2>/dev/null" EXIT
 
+# 告诉 Vite 只运行 Web，不要启动 Electron 窗口
+export VITE_WEB_ONLY=1
+
 echo -e "${GREEN}[INFO] 检查 Node.js 环境...${NC}"
 if ! command -v node &> /dev/null; then
     echo -e "${RED}[ERROR] 未检测到 Node.js。请安装 Node.js v22+。${NC}"

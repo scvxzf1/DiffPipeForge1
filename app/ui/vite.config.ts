@@ -19,7 +19,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    electron({
+    !process.env.VITE_WEB_ONLY && electron({
       main: {
         // Shortcut of `build.lib.entry`.
         entry: 'electron/main.ts',
@@ -37,6 +37,7 @@ export default defineConfig({
         ? undefined
         : {},
     }),
+
     obfuscator({
       compact: true,
       controlFlowFlattening: true,
