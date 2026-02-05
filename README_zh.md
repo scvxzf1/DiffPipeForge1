@@ -95,6 +95,11 @@ DiffPipeForge/
 chmod +x start.sh
 ./start.sh
 ```
+####
+云端运行：
+```bash
+chmod +x browser.sh && ./browser.sh
+```
 
 ### 开启第一次训练
 
