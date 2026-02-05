@@ -119,6 +119,7 @@ export function ModelConfig({ data, onChange }: ModelConfigProps) {
         { label: 'Qwen Image', value: 'qwen_image' },
         { label: 'AuraFlow', value: 'auraflow' },
         { label: 'Z-Image', value: 'z_image' },
+        { label: 'Anima', value: 'anima' },
     ];
 
     const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -174,6 +175,8 @@ export function ModelConfig({ data, onChange }: ModelConfigProps) {
                 return { ...base, diffusion_model_dtype: 'float8', timestep_sample_method: 'logit_normal', shift: 1 };
             case 'flux2':
                 return { ...base, diffusion_model_dtype: 'float8', timestep_sample_method: 'logit_normal', shift: 3 };
+            case 'anima':
+                return { ...base, llm_adapter_lr: 0 };
             default:
                 return base;
         }
@@ -609,6 +612,16 @@ export function ModelConfig({ data, onChange }: ModelConfigProps) {
                         <GlassSelect label={t('model_load.diffusion_model_dtype')} helpText={t('help.transformer_dtype')} name="diffusion_model_dtype" value={data.diffusion_model_dtype || 'float8'} onChange={handleChange} options={TRANSFORMER_DTYPE_OPTIONS} />
                         <GlassSelect label={t('model_load.timestep_sample_method')} helpText={t('help.timestep_sample_method')} name="timestep_sample_method" value={data.timestep_sample_method || 'logit_normal'} onChange={handleChange} options={TIMESTEP_SAMPLE_OPTIONS} />
                         <GlassInput label={t('model.shift')} helpText={t('help.shift')} name="shift" type="number" value={formatNum(data.shift ?? 3)} onChange={handleChange} />
+                    </>
+                );
+            case 'anima':
+                return (
+                    <>
+                        <PathInput label={t('model.transformer_path')} helpText={t('help.transformer_path')} name="transformer_path" data={data} handleChange={handleChange} handlePickPath={handlePickPath} openTitle={t('project.open')} placeholder="anima-preview.safetensors" />
+                        <PathInput label={t('model.vae_path')} helpText={t('help.vae_path')} name="vae_path" data={data} handleChange={handleChange} handlePickPath={handlePickPath} openTitle={t('project.open')} placeholder="qwen_image_vae.safetensors" />
+                        <PathInput label={t('model.llm_path')} helpText={t('help.llm_path')} name="llm_path" data={data} handleChange={handleChange} handlePickPath={handlePickPath} openTitle={t('project.open')} placeholder="qwen_3_06b_base.safetensors" />
+                        <GlassSelect label={t('model_load.dtype')} helpText={t('help.dtype')} name="dtype" value={data.dtype || 'bfloat16'} onChange={handleChange} options={DTYPE_OPTIONS} />
+                        <GlassInput label={t('model.llm_adapter_lr')} helpText={t('help.llm_adapter_lr')} name="llm_adapter_lr" type="number" step="1e-7" value={formatNum(data.llm_adapter_lr ?? 0)} onChange={handleChange} />
                     </>
                 );
 

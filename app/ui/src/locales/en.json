@@ -348,7 +348,8 @@
         "byt5_path": "ByT5 Path",
         "diffusion_model": "Diffusion Model Path",
         "merge_adapters": "Merge Adapters",
-        "diffusion_path": "Diffusion Path"
+        "diffusion_path": "Diffusion Path",
+        "llm_adapter_lr": "LLM Adapter LR"
     },
     "model_load": {
         "title": "Model Loading Config",
@@ -607,7 +608,8 @@
         "save_every_n_epochs": "Frequency of saving full training state (checkpoint) in epochs.",
         "eval_dataset": "The evaluation dataset is used to assess the model's performance during training. By testing on data independent of the training set(Note: the evaluation dataset cannot be the same as the training dataset, you can also split a part of the training dataset as the evaluation dataset, but it is not recommended to use the same images), you can monitor for overfitting and track the actual progress of generation quality.",
         "num_gpus": "Specify the number of GPUs to use for training.",
-        "checkpoint_every_n_minutes": "Frequency of saving full training state (checkpoint) in minutes, which can let you resume training from the checkpoint if the training is interrupted."
+        "checkpoint_every_n_minutes": "Frequency of saving full training state (checkpoint) in minutes, which can let you resume training from the checkpoint if the training is interrupted.",
+        "llm_adapter_lr": "Learning rate for the LLM adapter. This is an adapter that processes LLM embeddings before feeding them into the diffusion model. Setting this to 0 disables its training,which may makes training more stable for small datasets, if you have a large dataset or many new concepts, you can try training llm_adapter to see if it helps"
     },
     "diagnostics": {
         "title": "System Diagnostics",

@@ -107,6 +107,7 @@ chmod +x start.sh
 ## 📖 相关文档
 
 有关详细的配置示例和特定模型的说明，请参阅：
-- [支持模型指南](supported_models.md)
+- [支持模型指南](supported_models_cn.md)
+- [Supported Models Guide (English)](supported_models.md)
 - [示例配置文件](examples/)
 

@@ -25,6 +25,7 @@
 |Qwen-Image-Edit-2511 |✅    |✅              |✅                |
 |Qwen-Image-Edit-2512 |✅    |✅              |✅                |
 |Flux 2（both dev and klein）          |✅    |✅              |✅                |
+|Anima           |✅    |✅              |✅                |
 
 
 ## SDXL
@@ -601,3 +602,29 @@ shift = 3
 - 文本编码器可以是fp8版本。不过，扩散模型应该是全量的。如果fp8扩散模型是纯格式的（可能是Klein），它也许能跑，但fp8_scaled/fp8_mixed肯定跑不起来。
 
 LoRA以ComfyUI格式保存。
+
+## Anima
+```
+[model]
+type = 'anima'
+transformer_path = '/data2/imagegen_models/comfyui-models/anima-preview.safetensors'
+vae_path = '/data2/imagegen_models/comfyui-models/qwen_image_vae.safetensors'
+llm_path = '/data2/imagegen_models/comfyui-models/qwen_3_06b_base.safetensors'
+dtype = 'bfloat16'
+# 注释掉以训练 llm_adapter，或将学习率调整为 >0。
+llm_adapter_lr = 0
+```
+
+使用官方的[ComfyUI格式模型文件](https://huggingface.co/circlestone-labs/Anima)。
+
+说明：
+- 可能需要使用比其他模型更低的学习率。
+- 你可以单独控制 llm_adapter 的学习率。这是一个在将 Qwen3 嵌入输入扩散模型之前对其进行处理的适配器。
+  - 设置 `llm_adapter_lr=0` 会完全禁用其训练。这可能会使小数据集的训练更加稳定。
+  - 如果你有一个较大的数据集或许多全新的概念，可以尝试训练 llm_adapter 看看是否有帮助。
+- **请注意：在预览版上训练的任何 LoRA 可能无法在正式版上正常工作**
+  - 请将其视为“临时 LoRA”，届时你可能需要重新训练。
+  - 底层模型仍在进行训练，最终权重将与预览版权重产生偏差。
+  - 如果你将 LoRA 上传到公共平台，请务必注明它是基于预览版训练的，以免用户因其在正式版上表现不佳而感到困惑。
+Anima LoRA 以 ComfyUI 格式保存。
+

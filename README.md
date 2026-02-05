@@ -110,5 +110,6 @@ chmod +x start.sh
 
 For detailed configuration examples and model-specific notes, please refer to:
 - [Supported Models Guide](supported_models.md)
+- [支持模型指南 (简体中文)](supported_models_cn.md)
 - [Example Configuration Files](examples/)
 

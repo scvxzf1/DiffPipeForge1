@@ -137,7 +137,8 @@ export function ModelTrainingPage({
                     v_pred: !!m.v_pred,
                     debiased_estimation_loss: !!m.debiased_estimation_loss,
                     min_snr_gamma: m.min_snr_gamma ?? importedConfig.min_snr_gamma,
-                    flux_shift: m.flux_shift !== undefined ? m.flux_shift : m.shift
+                    flux_shift: m.flux_shift !== undefined ? m.flux_shift : m.shift,
+                    llm_adapter_lr: m.llm_adapter_lr ?? 0
                 };
 
                 // Sync global type on import
@@ -678,6 +679,12 @@ export function ModelTrainingPage({
                             const adapters = Array.isArray(m.merge_adapters) ? m.merge_adapters : [m.merge_adapters];
                             lines.push(`merge_adapters = [${adapters.map((a: string) => `'${a.replace(/\\/g, '/')}'`).join(', ')}]`);
                         }
+                        break;
+                    case 'anima':
+                        lines.push(`transformer_path = '${(m.transformer_path || '').replace(/\\/g, '/')}'`);
+                        lines.push(`vae_path = '${(m.vae_path || '').replace(/\\/g, '/')}'`);
+                        lines.push(`llm_path = '${(m.llm_path || '').replace(/\\/g, '/')}'`);
+                        lines.push(`llm_adapter_lr = ${formatValue(m.llm_adapter_lr ?? 0)}`);
                         break;
 
                     default:

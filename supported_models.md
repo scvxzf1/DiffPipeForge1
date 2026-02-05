@@ -25,6 +25,7 @@
 |Qwen-Image-Edit-2511 |✅    |✅              |✅                |
 |Qwen-Image-Edit-2512 |✅    |✅              |✅                |
 |Flux 2（both dev and klein）          |✅    |✅              |✅                |
+|Anima           |✅    |✅              |✅                |
 
 
 ## SDXL
@@ -654,3 +655,28 @@ num_repeats = 1
 Note: Control prompts need to be placed in the `path` directory, and corresponding nodes should be placed in the target directory (`target_path`).
 
 
+
+## Anima
+```
+[model]
+type = 'anima'
+transformer_path = '/data2/imagegen_models/comfyui-models/anima-preview.safetensors'
+vae_path = '/data2/imagegen_models/comfyui-models/qwen_image_vae.safetensors'
+llm_path = '/data2/imagegen_models/comfyui-models/qwen_3_06b_base.safetensors'
+dtype = 'bfloat16'
+# Comment out to train the llm_adapter, or adjust the learning rate to be >0.
+llm_adapter_lr = 0
+```
+
+Use the official [ComfyUI format model files](https://huggingface.co/circlestone-labs/Anima).
+
+Notes:
+- Might need to use lower learning rate than other models.
+- You can control the llm_adapter learning rate separately. This is an adapter that processes the Qwen3 embeddings before feeding into the diffusion model.
+  - Setting `llm_adapter_lr=0` disables training it entirely. This probably makes training more stable for small datasets.
+  - If you have a larger dataset or a lot of brand-new concepts, you can try training the llm_adapter and see if it helps.
+- **Assume that any lora trained on the preview version won't work well on the final version**
+  - Consider it to be a "throwaway lora" that you likely will need to retrain.
+  - The underlying model is still training and it will diverge from the preview weights.
+  - If you are uploading the lora somewhere, specify that it is trained on preview, so that users aren't confused if it doesn't work well on the final version.
+Anima LoRAs are saved in ComfyUI format.

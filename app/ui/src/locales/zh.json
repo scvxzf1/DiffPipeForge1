@@ -348,7 +348,8 @@
         "byt5_path": "ByT5 路径",
         "diffusion_model": "Diffusion 模型路径",
         "merge_adapters": "Merge Adapters",
-        "diffusion_path": "Diffusion 路径"
+        "diffusion_path": "Diffusion 路径",
+        "llm_adapter_lr": "LLM Adapter 学习率"
     },
     "model_load": {
         "title": "模型加载配置",
@@ -470,7 +471,8 @@
         "open_desc": "打开现有项目或将文件夹拖入此处",
         "rename_title": "重命名项目",
         "rename_confirm_desc": "您确定要将此项目重命名为",
-        "available_envs": "检测到的环境"
+        "available_envs": "检测到的环境",
+        "open": "打开项目"
     },
     "monitoring": {
         "title": "监控配置 (WandB)",
@@ -605,7 +607,8 @@
         "save_every_n_epochs": "每隔多少个轮次保存一次完整的训练状态（检查点）。",
         "eval_dataset": "验证集用于在训练过程中评估模型的性能。通过在独立于训练数据的数据上进行测试（注意，不能和训练数据集是同一个路径，你也可以从训练数据集中划分一部分作为验证集，但是不建议使用相同的图片），您可以观察模型是否发生了过拟合，以及生成质量的实际进展。",
         "num_gpus": "指定训练使用的 GPU 数量。",
-        "checkpoint_every_n_minutes": "多久保存一次检查点，检查点可以让你在训练中断后继续训练，而不是从头开始。"
+        "checkpoint_every_n_minutes": "多久保存一次检查点，检查点可以让你在训练中断后继续训练，而不是从头开始。",
+        "llm_adapter_lr": "适配器的学习率。这是一个在将 LLM 嵌入输入扩散模型之前对其进行处理的适配器。设置为 0 将禁用其训练。这可能会使小数据集的训练更加稳定。如果你有一个较大的数据集或许多全新的概念，可以尝试训练 llm_adapter 看看是否有帮助"
     },
     "diagnostics": {
         "title": "系统诊断",
