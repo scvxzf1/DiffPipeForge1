@@ -98,6 +98,19 @@ export function AdapterConfig({ data, onChange }: AdapterConfigProps) {
                     disabled={data.adapter_type === 'none'}
                     className={data.adapter_type === 'none' ? 'opacity-50' : ''}
                 />
+                <GlassInput
+                    label={t('adapter.dropout')}
+                    helpText={t('help.dropout')}
+                    name="dropout"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={data.dropout ?? 0.0}
+                    onChange={handleChange}
+                    disabled={data.adapter_type === 'none'}
+                    className={data.adapter_type === 'none' ? 'opacity-50' : ''}
+                />
                 <GlassSelect
                     label={t('adapter.dtype')}
                     helpText={t('help.dtype')}

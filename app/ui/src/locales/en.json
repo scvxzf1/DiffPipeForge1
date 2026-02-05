@@ -443,6 +443,7 @@
         "rank": "Rank",
         "dtype": "Dtype",
         "init_from": "Init From Existing",
+        "dropout": "Dropout",
         "fft_hint": "Tip: Full Fine-Tuning (FFT) mode is active. All model parameters will be trained; LoRA-specific settings are disabled."
     },
     "start_params": {
@@ -566,6 +567,7 @@
         "model_type": "Select the loading architecture for the model based on your files (single file vs folder).",
         "adapter_type": "Type of adapter. 'lora' is the standard choice. Delete or comment out the adapter section to perform Full Fine-Tuning (FFT).",
         "rank": "The rank of LoRA. Higher values mean more parameters and better expressive power but risk overfitting and higher VRAM usage.",
+        "dropout": "The dropout probability for LoRA layers. Helps prevent overfitting by randomly 'dropping out' (setting to zero) a fraction of neurons during training. Recommended range: 0.0 to 0.1.",
         "init_from_existing": "You can initialize the adapter weights from a previously trained adapter (e.g., a LoRA). Enter the path to the saved weights folder.",
         "lr": "Learning Rate, controls the step size at each update. Too large can cause training to diverge, while too small will make training extremely slow. Fine-tune based on your model and optimizer.",
         "weight_decay": "A regularization technique to prevent overfitting.",

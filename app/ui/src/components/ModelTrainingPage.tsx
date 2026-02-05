@@ -67,7 +67,8 @@ const DEFAULT_OPTIMIZER_DATA = {
 const DEFAULT_ADAPTER_DATA = {
     adapter_type: 'lora',
     rank: 32,
-    dtype: 'bfloat16'
+    dtype: 'bfloat16',
+    dropout: 0.0
 };
 const DEFAULT_MONITORING_DATA = {
     enable_wandb: false,
@@ -201,6 +202,7 @@ export function ModelTrainingPage({
                     adapter_type: a.type,
                     rank: a.rank,
                     dtype: a.dtype,
+                    dropout: a.dropout ?? 0.0,
                     init_from_existing: a.init_from_existing
                 }));
             } else if (importedConfig.adapter_arguments) {
@@ -731,8 +733,10 @@ export function ModelTrainingPage({
                 // Need to provide defaults if values are missing from state
                 const rank = fullConfig.adapter?.rank || 32;
                 const dtype = fullConfig.adapter?.dtype || 'bfloat16';
+                const dropout = fullConfig.adapter?.dropout ?? 0.0;
                 lines.push(`rank = ${Number(rank)}`);
                 lines.push(`dtype = '${dtype}'`);
+                lines.push(`dropout = ${formatValue(dropout)}`);
 
                 if (fullConfig.adapter?.init_from_existing) {
                     lines.push(`init_from_existing = '${fullConfig.adapter.init_from_existing.replace(/\\/g, '\\\\')}'`);
