@@ -69,7 +69,8 @@
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20;
     font-feature-settings: "rlig" 1, "calt" 1;
-    overflow: hidden; /* Prevent body scrolling since win is frameless */
+    overflow: hidden;
+    /* Prevent body scrolling since win is frameless */
   }
 
   /* App Window border for frameless mode */
@@ -149,11 +150,14 @@
 }
 
 @keyframes twinkle {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.3;
     transform: scale(0.8);
     filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
   }
+
   50% {
     opacity: 1;
     transform: scale(1.1);
