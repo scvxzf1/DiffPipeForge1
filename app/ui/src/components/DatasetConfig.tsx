@@ -30,8 +30,15 @@ const DEFAULT_CONFIG = {
     ar_buckets: '',
     control_paths: [''] as string[],
     eval_sets: [{ name: 'validation_set', path: '' }] as { name: string, path: string }[],
-    disable_validation: 'false'
+    disable_validation: 'false',
+    // Shuffle tags settings
+    cache_shuffle_num: 0,
+    cache_shuffle_delimiter: ', ',
+    mask_path: '',
+    // Multi-dataset support for training
+    train_sets: [] as { input_path: string, num_repeats: number, control_paths: string[], mask_path: string }[]
 };
+
 
 export function DatasetConfig({ mode = 'training', importedConfig, modelType, modelVersion, onPathsChange, onSetsChange }: DatasetConfigProps) {
     const { t } = useTranslation();
@@ -41,7 +48,9 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
     // Notify parent of path changes
     useEffect(() => {
         if (mode === 'training') {
-            onPathsChange?.([formData.input_path, ...formData.control_paths]);
+            // Include main path, control paths, and all train_sets paths
+            const trainSetsPaths = formData.train_sets.flatMap(s => [s.input_path, ...s.control_paths]);
+            onPathsChange?.([formData.input_path, ...formData.control_paths, ...trainSetsPaths]);
         } else {
             // Evaluation mode
             if (formData.disable_validation === 'true') {
@@ -53,7 +62,7 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                 onSetsChange?.(formData.eval_sets);
             }
         }
-    }, [formData.input_path, formData.eval_sets, formData.control_paths, formData.disable_validation, onPathsChange, onSetsChange, mode]);
+    }, [formData.input_path, formData.eval_sets, formData.control_paths, formData.train_sets, formData.disable_validation, onPathsChange, onSetsChange, mode]);
     const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isFirstRender = useRef(true);
@@ -88,6 +97,26 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                 }
             }
 
+            // Handle additional training sets from directories at index 1+
+            const additionalTrainSets: { input_path: string, num_repeats: number, control_paths: string[], mask_path: string }[] = [];
+            if (mode === 'training' && importedConfig.directory && importedConfig.directory.length > 1) {
+                for (let i = 1; i < importedConfig.directory.length; i++) {
+                    const dir = importedConfig.directory[i];
+                    let ctrlPaths = [''];
+                    if (Array.isArray(dir.control_path)) {
+                        ctrlPaths = dir.control_path;
+                    } else if (dir.control_path) {
+                        ctrlPaths = [dir.control_path];
+                    }
+                    additionalTrainSets.push({
+                        input_path: dir.path || '',
+                        num_repeats: dir.num_repeats ?? 1,
+                        control_paths: ctrlPaths,
+                        mask_path: dir.mask_path || ''
+                    });
+                }
+            }
+
             setFormData(prev => ({
                 ...prev,
                 resolutions: JSON.stringify(importedConfig.resolutions || [512]),
@@ -107,7 +136,14 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                     ? [{ name: 'validation_set', path: importedConfig.directory[0].path }]
                     : prev.eval_sets,
                 // Explicitly enable if config exists
-                disable_validation: 'false'
+                disable_validation: 'false',
+                // Shuffle settings
+                cache_shuffle_num: importedConfig.cache_shuffle_num ?? prev.cache_shuffle_num,
+                cache_shuffle_delimiter: importedConfig.cache_shuffle_delimiter ?? prev.cache_shuffle_delimiter,
+                // Mask path from first directory
+                mask_path: importedConfig.directory?.[0]?.mask_path || prev.mask_path,
+                // Load additional training sets
+                train_sets: additionalTrainSets
             }));
         }
     }, [importedConfig, mode]);
@@ -167,6 +203,53 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
         const newSets = formData.eval_sets.filter((_, i) => i !== index);
         setFormData(prev => ({ ...prev, eval_sets: newSets.length ? newSets : [{ name: 'validation_set', path: '' }] }));
     };
+
+    // === Training Set Handlers ===
+    const addTrainSet = () => {
+        setFormData(prev => ({
+            ...prev,
+            train_sets: [...prev.train_sets, { input_path: '', num_repeats: 1, control_paths: [''], mask_path: '' }]
+        }));
+    };
+
+    const removeTrainSet = (index: number) => {
+        const newSets = formData.train_sets.filter((_, i) => i !== index);
+        setFormData(prev => ({ ...prev, train_sets: newSets }));
+    };
+
+    const handleTrainSetPathChange = (index: number, path: string) => {
+        const newSets = [...formData.train_sets];
+        newSets[index] = { ...newSets[index], input_path: path };
+        setFormData(prev => ({ ...prev, train_sets: newSets }));
+    };
+
+    const handleTrainSetRepeatsChange = (index: number, repeats: number) => {
+        const newSets = [...formData.train_sets];
+        newSets[index] = { ...newSets[index], num_repeats: repeats };
+        setFormData(prev => ({ ...prev, train_sets: newSets }));
+    };
+
+    const handleTrainSetControlPathChange = (setIndex: number, pathIndex: number, value: string) => {
+        const newSets = [...formData.train_sets];
+        const newControlPaths = [...newSets[setIndex].control_paths];
+        newControlPaths[pathIndex] = value;
+        newSets[setIndex] = { ...newSets[setIndex], control_paths: newControlPaths };
+        setFormData(prev => ({ ...prev, train_sets: newSets }));
+    };
+
+    const addTrainSetControlPath = (setIndex: number) => {
+        const newSets = [...formData.train_sets];
+        newSets[setIndex] = { ...newSets[setIndex], control_paths: [...newSets[setIndex].control_paths, ''] };
+        setFormData(prev => ({ ...prev, train_sets: newSets }));
+    };
+
+    const removeTrainSetControlPath = (setIndex: number, pathIndex: number) => {
+        const newSets = [...formData.train_sets];
+        const newControlPaths = newSets[setIndex].control_paths.filter((_, i) => i !== pathIndex);
+        newSets[setIndex] = { ...newSets[setIndex], control_paths: newControlPaths.length ? newControlPaths : [''] };
+        setFormData(prev => ({ ...prev, train_sets: newSets }));
+    };
+
 
     const handlePickDir = async (callback: (path: string) => void) => {
         try {
@@ -279,10 +362,25 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
 
             if (isTraining) {
                 const trainLines = [baseContent];
+
+                // Global shuffle settings
+                if (Number(formData.cache_shuffle_num) > 0) {
+                    trainLines.push(`cache_shuffle_num = ${Number(formData.cache_shuffle_num)}`);
+                    if (formData.cache_shuffle_delimiter && formData.cache_shuffle_delimiter !== ', ') {
+                        trainLines.push(`cache_shuffle_delimiter = '${formData.cache_shuffle_delimiter}'`);
+                    }
+                }
+
+                // Main dataset
                 trainLines.push('\n[[directory]]');
                 const inputPath = formData.input_path.replace(/\\/g, '/');
                 trainLines.push(`path = '${inputPath}'`);
                 trainLines.push(`num_repeats = ${Number(formData.num_repeats)}`);
+
+                // Add mask_path for main dataset if provided
+                if (formData.mask_path) {
+                    trainLines.push(`mask_path = '${formData.mask_path.replace(/\\/g, '/')}'`);
+                }
 
                 const validControlPaths = isEditingModel ? formData.control_paths : [];
                 if (isEditingModel) {
@@ -293,11 +391,35 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                         trainLines.push(`control_path = [${pathsArray}]`);
                     }
                 }
+
+                // Additional training sets
+                for (const trainSet of formData.train_sets) {
+                    trainLines.push('\n[[directory]]');
+                    trainLines.push(`path = '${trainSet.input_path.replace(/\\/g, '/')}'`);
+                    trainLines.push(`num_repeats = ${Number(trainSet.num_repeats)}`);
+
+                    // Add mask_path for additional training set if provided
+                    if (trainSet.mask_path) {
+                        trainLines.push(`mask_path = '${trainSet.mask_path.replace(/\\/g, '/')}'`);
+                    }
+
+                    if (isEditingModel && trainSet.control_paths.some(p => p)) {
+                        const ctrlPaths = trainSet.control_paths.filter(p => p);
+                        if (ctrlPaths.length === 1) {
+                            trainLines.push(`control_path = '${ctrlPaths[0].replace(/\\/g, '/')}'`);
+                        } else if (ctrlPaths.length > 1) {
+                            const pathsArray = ctrlPaths.map(p => `'${p.replace(/\\/g, '/')}'`).join(', ');
+                            trainLines.push(`control_path = [${pathsArray}]`);
+                        }
+                    }
+                }
+
                 const tomlString = trainLines.join('\n');
                 await window.ipcRenderer.invoke('save-to-date-folder', {
                     filename: 'dataset.toml',
                     content: tomlString
                 });
+
             } else {
                 // Evaluation mode
                 if (formData.disable_validation === 'true') {
@@ -624,6 +746,52 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                         />
                     </div>
 
+                    {/* Shuffle Tags and Mask Path Section - Training Only */}
+                    {isTraining && (
+                        <div className="col-span-2 pt-4 border-t border-white/10">
+                            <h4 className="text-lg font-bold mb-4">{t('dataset.shuffle_mask_section')}</h4>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <GlassInput
+                                    label={t('dataset.cache_shuffle_num')}
+                                    helpText={t('help.cache_shuffle_num')}
+                                    name="cache_shuffle_num"
+                                    type="number"
+                                    value={formData.cache_shuffle_num}
+                                    onChange={handleChange}
+                                    placeholder="0"
+                                />
+                                {Number(formData.cache_shuffle_num) > 0 && (
+                                    <GlassInput
+                                        label={t('dataset.cache_shuffle_delimiter')}
+                                        helpText={t('help.cache_shuffle_delimiter')}
+                                        name="cache_shuffle_delimiter"
+                                        value={formData.cache_shuffle_delimiter}
+                                        onChange={handleChange}
+                                        placeholder=", "
+                                    />
+                                )}
+                                <div className="col-span-2 relative">
+                                    <GlassInput
+                                        label={t('dataset.mask_path')}
+                                        helpText={t('help.mask_path')}
+                                        name="mask_path"
+                                        value={formData.mask_path}
+                                        onChange={handleChange}
+                                        placeholder={t('dataset.mask_path_placeholder')}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePickDir((path) => setFormData(prev => ({ ...prev, mask_path: path })))}
+                                        className="absolute right-3 bottom-2.5 p-1 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground transition-colors hover:text-primary"
+                                        title={t('project.open')}
+                                    >
+                                        <FolderOpen className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="col-span-2 pt-4 border-t border-white/10">
                         <h4 className="text-lg font-bold mb-4">{t('dataset.advanced_buckets')}</h4>
                         <div className="grid gap-4 md:grid-cols-2">
@@ -666,6 +834,104 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                     </div>
                 </form>
             </GlassCard>
+
+            {/* Additional Training Sets UI */}
+            {isTraining && (
+                <div className="space-y-4">
+                    {/* Render additional training set cards */}
+                    {formData.train_sets.map((trainSet, index) => (
+                        <GlassCard key={index} className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-lg font-bold">{t('dataset.extra_training_set')} #{index + 1}</h4>
+                                <GlassButton
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => removeTrainSet(index)}
+                                >
+                                    <Trash2 className="w-4 h-4 mr-1" />
+                                    {t('common.delete')}
+                                </GlassButton>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="col-span-2 relative">
+                                    <GlassInput
+                                        label={t('dataset.input_path')}
+                                        value={trainSet.input_path}
+                                        onChange={(e) => handleTrainSetPathChange(index, e.target.value)}
+                                        placeholder={t('dataset.input_path_placeholder')}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => handlePickDir((path) => handleTrainSetPathChange(index, path))}
+                                        className="absolute right-3 bottom-2.5 p-1 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground transition-colors hover:text-primary"
+                                        title={t('project.open')}
+                                    >
+                                        <FolderOpen className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <GlassInput
+                                    label={t('dataset.num_repeats')}
+                                    type="number"
+                                    value={trainSet.num_repeats}
+                                    onChange={(e) => handleTrainSetRepeatsChange(index, Number(e.target.value))}
+                                />
+                                {isEditingModel && (
+                                    <div className="col-span-2 space-y-3">
+                                        <label className="text-sm font-medium">{t('dataset.control_path')}</label>
+                                        {trainSet.control_paths.map((ctrlPath, pathIndex) => (
+                                            <div key={pathIndex} className="flex gap-2 items-center">
+                                                <div className="flex-1 relative">
+                                                    <GlassInput
+                                                        label=""
+                                                        value={ctrlPath}
+                                                        onChange={(e) => handleTrainSetControlPathChange(index, pathIndex, e.target.value)}
+                                                        placeholder={t('dataset.control_path_placeholder')}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handlePickDir((p) => handleTrainSetControlPathChange(index, pathIndex, p))}
+                                                        className="absolute right-3 bottom-2.5 p-1 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground transition-colors hover:text-primary"
+                                                        title={t('project.open')}
+                                                    >
+                                                        <FolderOpen className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                {trainSet.control_paths.length > 1 && (
+                                                    <GlassButton
+                                                        type="button"
+                                                        variant="destructive"
+                                                        size="icon"
+                                                        onClick={() => removeTrainSetControlPath(index, pathIndex)}
+                                                        className="mt-1"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </GlassButton>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <GlassButton type="button" variant="outline" size="sm" onClick={() => addTrainSetControlPath(index)} className="w-full border-dashed">
+                                            <Plus className="w-4 h-4 mr-2" />
+                                            {t('dataset.add_path')}
+                                        </GlassButton>
+                                    </div>
+                                )}
+                            </div>
+                        </GlassCard>
+                    ))}
+
+                    {/* Add Extra Training Set Button */}
+                    <GlassButton
+                        type="button"
+                        variant="outline"
+                        className="w-full border-dashed py-4"
+                        onClick={addTrainSet}
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        {t('dataset.add_extra_training_set')}
+                    </GlassButton>
+                </div>
+            )}
 
             <GlassConfirmDialog
                 isOpen={isResetDialogOpen}

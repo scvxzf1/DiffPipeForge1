@@ -57,7 +57,8 @@
         "load_more": "展开更多",
         "restore_selected": "恢复所选",
         "stop_download": "停止下载",
-        "shift_click_hint": "提示：按住 Shift + 左键可批量选择"
+        "shift_click_hint": "提示：按住 Shift + 左键可批量选择",
+        "delete": "删除"
     },
     "about": {
         "title": "关于软件",
@@ -309,7 +310,14 @@
         "control_path_placeholder": "C:\\path\\to\\your\\control_images",
         "resolutions_placeholder": "[512] 或者 [[1280, 720]]",
         "custom_ar_buckets_placeholder": "[[512, 512], [448, 576]]或者[1.0, 1.5]",
-        "frame_buckets_placeholder": "[1, 33, 65]"
+        "frame_buckets_placeholder": "[1, 33, 65]",
+        "extra_training_set": "额外训练集",
+        "add_extra_training_set": "添加额外训练集",
+        "shuffle_mask_section": "标签打乱与遮罩",
+        "cache_shuffle_num": "标签打乱版本数",
+        "cache_shuffle_delimiter": "标签分隔符",
+        "mask_path": "遮罩图片路径",
+        "mask_path_placeholder": "C:\\path\\to\\your\\masks"
     },
     "model": {
         "title": "模型配置",
@@ -610,7 +618,10 @@
         "eval_dataset": "验证集用于在训练过程中评估模型的性能。通过在独立于训练数据的数据上进行测试（注意，不能和训练数据集是同一个路径，你也可以从训练数据集中划分一部分作为验证集，但是不建议使用相同的图片），您可以观察模型是否发生了过拟合，以及生成质量的实际进展。",
         "num_gpus": "指定训练使用的 GPU 数量。",
         "checkpoint_every_n_minutes": "多久保存一次检查点，检查点可以让你在训练中断后继续训练，而不是从头开始。",
-        "llm_adapter_lr": "适配器的学习率。这是一个在将 LLM 嵌入输入扩散模型之前对其进行处理的适配器。设置为 0 将禁用其训练。这可能会使小数据集的训练更加稳定。如果你有一个较大的数据集或许多全新的概念，可以尝试训练 llm_adapter 看看是否有帮助"
+        "llm_adapter_lr": "适配器的学习率。这是一个在将 LLM 嵌入输入扩散模型之前对其进行处理的适配器。设置为 0 将禁用其训练。这可能会使小数据集的训练更加稳定。如果你有一个较大的数据集或许多全新的概念，可以尝试训练 llm_adapter 看看是否有帮助",
+        "cache_shuffle_num": "缓存的标签打乱版本数。若大于 0，则会为每张图片生成多个随机打乱标签顺序的版本用于训练，增加泛化性。仅适用于标签式的 Caption（如 Danbooru 风格），不适用于自然语言描述。",
+        "cache_shuffle_delimiter": "标签分隔符。用于识别并分割 Caption 中的标签，默认为英文逗号+空格 ',' 。",
+        "mask_path": "遮罩图片文件夹路径。遮罩用于指定图片中需要关注或忽略的区域，训练时将根据遮罩调整损失计算权重。"
     },
     "diagnostics": {
         "title": "系统诊断",
