@@ -24,7 +24,7 @@ from accelerate.utils import set_module_tensor_to_device
 
 from models.base import BasePipeline, PreprocessMediaFile, make_contiguous
 from models.cosmos_predict2_modeling import MiniTrainDIT
-from utils.common import load_state_dict, AUTOCAST_DTYPE, is_main_process
+from utils.common import load_state_dict, AUTOCAST_DTYPE, is_main_process, iterate_safetensors
 from utils.offloading import ModelOffloader
 from models.wan.vae2_1 import WanVAE_
 
@@ -235,12 +235,16 @@ class CosmosPredict2Pipeline(BasePipeline):
             if os.path.isdir(llm_path):
                 # generic Transformers LLM
                 self.tokenizer = AutoTokenizer.from_pretrained(llm_path, local_files_only=True)
-                self.text_encoder = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype, local_files_only=True).model
+                text_encoder = AutoModelForCausalLM.from_pretrained(llm_path, dtype=dtype, local_files_only=True)
             else:
                 # assume Qwen3-0.6b (Anima)
                 self.tokenizer = AutoTokenizer.from_pretrained('configs/qwen3_06b', local_files_only=True)
                 llm_config = transformers.Qwen3Config.from_pretrained('configs/qwen3_06b', local_files_only=True)
-                self.text_encoder = transformers.Qwen3ForCausalLM(llm_config).model
+                with init_empty_weights():
+                    text_encoder = transformers.Qwen3ForCausalLM(llm_config)
+                for key, tensor in iterate_safetensors(llm_path):
+                    set_module_tensor_to_device(text_encoder, key, device='cpu', dtype=dtype, value=tensor)
+            self.text_encoder = text_encoder.model
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             self.text_encoder.config.use_cache = False
