@@ -70,7 +70,8 @@ export function MaskGenerator() {
 
     // Sync status and logs on mount
     useEffect(() => {
-        checkModelStatus();
+        // Disabled auto-check on mount to prevent issues in dev/linux
+        // checkModelStatus(); 
         const sync = async () => {
             const commonSettings = await window.ipcRenderer.invoke('get-tool-settings', 'common_toolbox_settings');
             if (commonSettings.imageDir) {
@@ -123,36 +124,25 @@ export function MaskGenerator() {
         sync();
     }, []);
 
-    const checkModelStatus = async (retryCount = 0) => {
+    const performModelCheck = async (): Promise<boolean> => {
         try {
-            // @ts-ignore
             const result = await window.ipcRenderer.invoke('run-python-script-capture', {
                 scriptPath: 'tools/mask_generate.py',
                 args: ['--mode', 'check', '--model_path', MODEL_PATH]
             });
 
-            if (result && result.stdout && result.stdout.includes('MODEL_EXISTS: True')) {
-                setModelExists(true);
-            } else {
-                // If result is undefined or error, log it but retry if under limit
-                // Check if it's the "No handler" error or similar
-                if (result && result.error && result.error.includes('No handler registered')) {
-                    throw new Error(result.error);
-                }
-                setModelExists(false);
-            }
-        } catch (error: any) {
-            console.error(`Failed to check model status (attempt ${retryCount + 1}):`, error);
-
-            // Retry logic for specific errors or general failures in dev mode
-            if (retryCount < 3) {
-                console.log(`Retrying model check in 1000ms...`);
-                setTimeout(() => checkModelStatus(retryCount + 1), 1000);
-            } else {
-                setModelExists(false);
-            }
+            const exists = result && result.stdout.includes('MODEL_EXISTS: True');
+            setModelExists(exists);
+            return exists;
+        } catch (error) {
+            console.error("Failed to check model status:", error);
+            setModelExists(false);
+            return false;
         }
     };
+
+    // Alias for compatibility if needed, but we used performModelCheck internally now
+    const checkModelStatus = performModelCheck;
 
     // Persistence save hook
     useEffect(() => {
@@ -272,10 +262,17 @@ export function MaskGenerator() {
             return;
         }
 
+        // On-demand model check
         if (modelExists !== true) {
-            showToast(t('toolbox.mask.no_model'), 'error');
-            return;
+            showToast(t('common.checking_model'), 'info');
+            const exists = await performModelCheck();
+            if (!exists) {
+                // If model missing, show download dialog
+                setIsConfirmDialogOpen(true);
+                return;
+            }
         }
+
 
         if (selectedLabels.size === 0) {
             showToast(t('toolbox.mask.no_labels'), 'error');
@@ -427,25 +424,27 @@ export function MaskGenerator() {
                                 {t('toolbox.mask.title')}
                             </div>
 
-                            {/* Model Status Badge */}
-                            <div className={cn(
-                                "px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-1.5 border transition-colors",
-                                modelExists
-                                    ? "bg-green-500/10 text-green-400 border-green-500/20"
-                                    : "bg-red-500/10 text-red-400 border-red-500/20"
-                            )}>
-                                {modelExists ? (
-                                    <>
-                                        <CheckCircle className="w-3 h-3" />
-                                        Segformer Ready
-                                    </>
-                                ) : (
-                                    <>
-                                        <AlertCircle className="w-3 h-3" />
-                                        {t('toolbox.mask.model_missing')}
-                                    </>
-                                )}
-                            </div>
+                            {/* Model Status Badge - Only show if known */}
+                            {modelExists !== null && (
+                                <div className={cn(
+                                    "px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-1.5 border transition-colors",
+                                    modelExists
+                                        ? "bg-green-500/10 text-green-400 border-green-500/20"
+                                        : "bg-red-500/10 text-red-400 border-red-500/20"
+                                )}>
+                                    {modelExists ? (
+                                        <>
+                                            <CheckCircle className="w-3 h-3" />
+                                            Segformer Ready
+                                        </>
+                                    ) : (
+                                        <>
+                                            <AlertCircle className="w-3 h-3" />
+                                            {t('toolbox.mask.model_missing')}
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div className="p-4 space-y-4">
@@ -739,6 +738,16 @@ export function MaskGenerator() {
                             >
                                 <ExternalLink className="w-4 h-4" />
                                 {t('toolbox.open')}
+                            </GlassButton>
+
+                            <GlassButton
+                                onClick={handleDownloadModel}
+                                variant="outline"
+                                className="gap-2"
+                                disabled={isRunning || isDownloading}
+                            >
+                                <Download className="w-4 h-4" />
+                                {t('toolbox.mask.download_model')}
                             </GlassButton>
 
                             <GlassButton
