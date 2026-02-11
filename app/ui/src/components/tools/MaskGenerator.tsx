@@ -449,7 +449,7 @@ export function MaskGenerator() {
 
                         <div className="p-4 space-y-4">
                             {/* Model Download Warning (if missing) */}
-                            {!modelExists && (
+                            {modelExists === false && (
                                 <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-200/90 text-xs flex items-center justify-between gap-4">
                                     <span>{t('toolbox.mask.model_missing_hint')}</span>
                                     <GlassButton
@@ -770,7 +770,7 @@ export function MaskGenerator() {
                                     onClick={runTool}
                                     variant="default"
                                     className="gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 border-0"
-                                    disabled={modelExists !== true || isDownloading || isRunning || selectedLabels.size === 0}
+                                    disabled={modelExists === false || isDownloading || isRunning || selectedLabels.size === 0}
                                 >
                                     <Play className="w-4 h-4 fill-current" />
                                     {t('common.start')}
