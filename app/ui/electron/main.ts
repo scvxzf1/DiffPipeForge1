@@ -109,6 +109,33 @@ interface AppSettings {
   toolSettings?: Record<string, any>;
 }
 
+loadSettings(): AppSettings;
+saveSettings(settings: AppSettings): void;
+}
+
+// Global helper functions (hoisted)
+const resolveModelsRoot = () => {
+  const settings = loadSettings();
+  // If packaged, root is inside resources; if dev, it's project root
+  // Actually, let's use a simpler logic based on typical usage in this codebase
+  // It returns { projectRoot, modelsRoot }
+  const projectRoot = APP_ROOT_DIR;
+  return { projectRoot };
+};
+
+const getPythonExe = (projectRoot: string) => {
+  const settings = loadSettings();
+  if (settings.userPythonPath && fs.existsSync(settings.userPythonPath)) {
+    return settings.userPythonPath;
+  }
+  // Default python path
+  if (process.platform === 'win32') {
+    return path.join(projectRoot, 'python/python.exe');
+  } else {
+    return path.join(projectRoot, 'python/bin/python3');
+  }
+};
+
 const loadSettings = (): AppSettings => {
   try {
     if (fs.existsSync(SETTINGS_FILE)) {
@@ -2402,418 +2429,565 @@ enable_ar_bucket = true
     }
   });
 
-  // IPC Handler to run python script and capture output (oneshot)
-  ipcMain.handle('run-python-script-capture', async (_event, { scriptPath, args = [] }: { scriptPath: string, args: string[] }) => {
-    return new Promise((resolve) => {
-      try {
-        const { projectRoot } = resolveModelsRoot();
-        const pythonExe = getPythonExe(projectRoot);
-
-        // Handle path resolution
-        let fullScriptPath = '';
-        if (scriptPath.includes('/') || scriptPath.includes('\\')) {
-          if (path.isAbsolute(scriptPath)) {
-            fullScriptPath = scriptPath;
-          } else {
-            fullScriptPath = path.join(projectRoot, scriptPath);
-          }
-        } else {
-          fullScriptPath = path.join(projectRoot, 'tools', scriptPath);
-        }
-
-        // Fallback check
-        if (!fs.existsSync(fullScriptPath)) {
-          // Fallback to backend/core/tools if not found
-          const fallback = path.join(APP_ROOT_DIR, 'app/backend/core/tools', path.basename(scriptPath));
-          if (fs.existsSync(fallback)) {
-            fullScriptPath = fallback;
-          }
-          // Don't fail yet, might be valid relative path handled by something else, but here we expect full path to exist
-          if (!fs.existsSync(fullScriptPath)) {
-            resolve({ success: false, error: `Script not found: ${fullScriptPath}` });
-            return;
-          }
-        }
-
-        const toolsDir = path.dirname(fullScriptPath);
-        console.log(`[ScriptCapture] Running: ${pythonExe} ${fullScriptPath} ${args.join(' ')}`);
-
-        const proc = spawn(pythonExe, [fullScriptPath, ...args], {
-          cwd: toolsDir,
-          env: {
-            ...process.env,
-            PYTHONUTF8: '1',
-            PYTHONIOENCODING: 'utf-8'
-          }
-        });
-
-        let stdout = '';
-        let stderr = '';
-
-        proc.stdout.on('data', (data) => stdout += data.toString());
-        proc.stderr.on('data', (data) => stderr += data.toString());
-
-        proc.on('close', (code) => {
-          resolve({
-            success: code === 0,
-            stdout,
-            stderr,
-            code
-          });
-        });
-
-        proc.on('error', (err) => {
-          resolve({ success: false, error: err.message });
-        });
-
-      } catch (e: any) {
-        resolve({ success: false, error: e.message });
-      }
-    });
-  });
-
-  // --- Toolbox IPC ---
-  let activeToolScriptName: string | null = null;
-  let isManuallyStopped = false;
-  ipcMain.handle('run-tool', async (_event, { scriptName, args = [], online = false }: { scriptName: string, args: string[], online?: boolean }) => {
-    if (activeToolProcess) {
-      return { success: false, error: "已有工具正在运行中" };
-    }
-
-    return new Promise((resolve) => {
-      try {
-        const { projectRoot } = resolveModelsRoot();
-        const pythonExe = getPythonExe(projectRoot);
-
-        let scriptPath = '';
-        let toolsDir = '';
-
-        // Check if scriptName is already a path (relative or absolute)
-        if (scriptName.includes('/') || scriptName.includes('\\')) {
-          if (path.isAbsolute(scriptName)) {
-            scriptPath = scriptName;
-          } else {
-            scriptPath = path.join(projectRoot, scriptName);
-          }
-          toolsDir = path.dirname(scriptPath);
-        } else {
-          // Default behavior: look in backend/core/tools first, then root/tools
-          const coreToolsDir = path.join(APP_ROOT_DIR, 'app/backend/core/tools');
-          const rootToolsDir = path.join(projectRoot, 'tools');
-
-          if (fs.existsSync(path.join(coreToolsDir, scriptName))) {
-            toolsDir = coreToolsDir;
-            scriptPath = path.join(coreToolsDir, scriptName);
-          } else if (fs.existsSync(path.join(rootToolsDir, scriptName))) {
-            toolsDir = rootToolsDir;
-            scriptPath = path.join(rootToolsDir, scriptName);
-          } else {
-            // Fallback to legacy behavior or error
-            toolsDir = rootToolsDir;
-            scriptPath = path.join(rootToolsDir, scriptName);
-          }
-        }
-
-        if (!fs.existsSync(scriptPath)) {
-          resolve({ success: false, error: `找不到工具脚本: ${scriptPath}` });
-          return;
-        }
-
-        toolLogBuffer = [];
-        activeToolScriptName = scriptName;
-        isManuallyStopped = false;
-        console.log(`[Toolbox] Running: ${pythonExe} ${scriptPath} ${args.join(' ')}`);
-
-        const env: any = {
-          ...process.env,
-          PYTHONUTF8: '1',
-          PYTHONIOENCODING: 'utf-8',
-          PYTHONUNBUFFERED: '1',
-        };
-
-        if (!online) {
-          env.HF_HUB_OFFLINE = '1';
-          env.TRANSFORMERS_OFFLINE = '1';
-        }
-
-        activeToolProcess = spawn(pythonExe, [scriptPath, ...args], {
-          cwd: toolsDir,
-          env
-        });
-
-        // Helper to clean logs
-        const cleanLog = (data: any) => {
-          let str = data.toString();
-          str = str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
-
-          // Normalize Windows newlines
-          str = str.replace(/\r\n/g, '\n');
-
-          // Handle progress bars (carriage return)
-          if (str.includes('\r')) {
-            // Split by \r and take the last non-empty part
-            const parts = str.split('\r').filter((p: string) => p.trim().length > 0);
-            if (parts.length > 0) {
-              str = parts[parts.length - 1];
-            } else {
-              // If everything was filtered out (e.g. only \r), result is empty
-              // But we might want to keep newlines if they existed before?
-              // Simplest fix for now: if we have parts, take the last one.
-              // If str resulted in empty after filter, it will be caught by the !str.trim() check below.
-            }
-          }
-          return str;
-        };
-
-        activeToolProcess.stdout?.on('data', (data) => {
-          const str = cleanLog(data);
-          if (!str.trim()) return;
-          console.log(`[Tool Out]: ${str}`);
-          _event.sender.send('tool-output', str);
-          toolLogBuffer.push(str);
-          if (toolLogBuffer.length > 1000) toolLogBuffer.shift();
-        });
-
-        activeToolProcess.stderr?.on('data', (data) => {
-          const str = cleanLog(data);
-          if (!str.trim()) return;
-          console.error(`[Tool Err]: ${str}`);
-          _event.sender.send('tool-output', str);
-          toolLogBuffer.push(str);
-          if (toolLogBuffer.length > 1000) toolLogBuffer.shift();
-        });
-
-        activeToolProcess.on('close', (code) => {
-          const timestamp = new Date().toLocaleTimeString();
-          const isSuccess = code === 0 && !isManuallyStopped;
-          const msg = `\n--- [${timestamp}] Task ${isSuccess ? 'Finished' : (isManuallyStopped ? 'Stopped' : 'Failed')} (Code ${code}) ---\n`;
-          console.log(`[Toolbox] Process exited with code ${code}`);
-
-          if (win) {
-            win.webContents.send('tool-status', { type: 'finished', code, isSuccess, scriptName });
-          }
-          toolLogBuffer.push(msg); // Keep this line for logging the message
-          activeToolProcess = null;
-          activeToolScriptName = null;
-          resolve({ success: isSuccess });
-        });
-
-        // Removed early resolve to wait for process completion
-
-      } catch (e: any) {
-        console.error("[Toolbox] Start failed:", e);
-        resolve({ success: false, error: e.message });
-      }
-    });
-  });
-
-  ipcMain.handle('stop-tool', async () => {
-    if (activeToolProcess) {
-      try {
-        if (process.platform === 'win32') {
-          exec(`taskkill /pid ${activeToolProcess.pid} /T /F`);
-        } else {
-          activeToolProcess.kill('SIGKILL');
-        }
-        isManuallyStopped = true;
-        activeToolProcess = null;
-        return { success: true };
-      } catch (e: any) {
-        return { success: false, error: e.message };
-      }
-    }
-    return { success: true };
-  });
-
-  ipcMain.handle('get-tool-status', async () => {
-    return { isRunning: !!activeToolProcess, pid: activeToolProcess?.pid, scriptName: activeToolScriptName };
-  });
-
-  ipcMain.handle('get-tool-logs', async () => {
-    return toolLogBuffer;
-  });
+}); // End of app.whenReady()
+// -------------------------------------------------------------------
+// GLOBAL IPC HANDLERS
+// -------------------------------------------------------------------
 
 
+// ======================================================================================
+// GLOBAL IPC HANDLERS (Moved out of app.whenReady to ensure early registration)
+// ======================================================================================
 
-  const RECENT_PROJECTS_FILE = path.join(app.getPath('userData'), 'recent_projects.json');
+// --- Toolbox IPC State ---
+// Ensure these are defined at top level for the handlers below
+// activeToolProcess is already defined at line 88.
 
-  const loadRecentProjects = () => {
-    try {
-      if (fs.existsSync(RECENT_PROJECTS_FILE)) {
-        const data = fs.readFileSync(RECENT_PROJECTS_FILE, 'utf-8');
-        const parsed = JSON.parse(data);
-        return Array.isArray(parsed) ? parsed : [];
-      }
-    } catch (e) {
-      console.error("Failed to load recent projects:", e);
-    }
-    return [];
-  };
-
-  const saveRecentProjects = (projects: any[]) => {
-    try {
-      fs.writeFileSync(RECENT_PROJECTS_FILE, JSON.stringify(projects, null, 2), 'utf-8');
-    } catch (e) {
-      console.error("Failed to save recent projects:", e);
-    }
-  };
-
-  const getVerifiedProjects = () => {
-    let projects = loadRecentProjects();
+// IPC Handler to run python script and capture output (oneshot)
+ipcMain.handle('run-python-script-capture', async (_event, { scriptPath, args = [] }: { scriptPath: string, args: string[] }) => {
+  return new Promise((resolve) => {
     try {
       const { projectRoot } = resolveModelsRoot();
-      const outputDir = path.join(projectRoot, 'output');
+      const pythonExe = getPythonExe(projectRoot);
 
-      if (fs.existsSync(outputDir)) {
-        const entries = fs.readdirSync(outputDir, { withFileTypes: true });
+      // Handle path resolution
+      let fullScriptPath = '';
+      if (scriptPath.includes('/') || scriptPath.includes('\\')) {
+        if (path.isAbsolute(scriptPath)) {
+          fullScriptPath = scriptPath;
+        } else {
+          fullScriptPath = path.join(projectRoot, scriptPath);
+        }
+      } else {
+        fullScriptPath = path.join(projectRoot, 'tools', scriptPath);
+      }
 
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            const fullPath = path.join(outputDir, entry.name);
-            // Any subdirectory in output is considered a project
-            const exists = projects.some((p: any) => path.relative(p.path, fullPath) === '');
-            if (!exists) {
-              projects.push({
-                name: entry.name,
-                path: fullPath,
-                lastModified: fs.statSync(fullPath).mtime.toLocaleString()
-              });
-            }
+      // Fallback check
+      if (!fs.existsSync(fullScriptPath)) {
+        // Fallback to backend/core/tools if not found
+        const fallback = path.join(APP_ROOT_DIR, 'app/backend/core/tools', path.basename(scriptPath));
+        if (fs.existsSync(fallback)) {
+          fullScriptPath = fallback;
+        }
+        // Don't fail yet, might be valid relative path handled by something else, but here we expect full path to exist
+        if (!fs.existsSync(fullScriptPath)) {
+          resolve({ success: false, error: `Script not found: ${fullScriptPath}` });
+          return;
+        }
+      }
+
+      const toolsDir = path.dirname(fullScriptPath);
+      console.log(`[ScriptCapture] Running: ${pythonExe} ${fullScriptPath} ${args.join(' ')}`);
+
+      const proc = spawn(pythonExe, [fullScriptPath, ...args], {
+        cwd: toolsDir,
+        env: {
+          ...process.env,
+          PYTHONUTF8: '1',
+          PYTHONIOENCODING: 'utf-8'
+        }
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      proc.stdout.on('data', (data) => stdout += data.toString());
+      proc.stderr.on('data', (data) => stderr += data.toString());
+
+      proc.on('close', (code) => {
+        resolve({
+          success: code === 0,
+          stdout,
+          stderr,
+          code
+        });
+      });
+
+      proc.on('error', (err) => {
+        resolve({ success: false, error: err.message });
+      });
+
+    } catch (e: any) {
+      resolve({ success: false, error: e.message });
+    }
+  });
+});
+
+// --- Toolbox IPC ---
+// Ensure these variables are accessible. activeToolProcess is global. 
+// isManuallyStopped needs to be moved out or defined here.
+// isManuallyStopped is already declared? No, let's just use one.
+// The previous block I added had `let isManuallyStopped = false;`
+// If it's duplicated below, I'll remove it there.
+// But here I am replacing the block I added? No, I am modifying line 2492.
+
+// ERROR: "Cannot redeclare block-scoped variable 'isManuallyStopped'."
+// It means I pasted it twice.
+// I will just remove this line if it exists.
+
+
+ipcMain.handle('run-tool', async (_event, { scriptName, args = [], online = false }: { scriptName: string, args: string[], online?: boolean }) => {
+  if (activeToolProcess) {
+    return { success: false, error: "已有工具正在运行中" };
+  }
+
+  // ... rest of run-tool implementation ...
+  // Since I can't move the entire block easily with replace_file_content if it's too big, 
+  // I will just close the app.whenReady earlier and let the rest file be global.
+
+  // WAIT. If I close app.whenReady at line 2404, what about the handlers BELOW 2404?
+  // There are many handlers below 2404 (run-tool, stop-tool, ensure-dir-exists, open-path...).
+  // If I close it there, ALL subsequent handlers become global. 
+  // This is exactly what I want!
+
+  // So I just need to:
+  // 1. Remove the closing `})` from the VERY END of the file (line 2818).
+  // 2. Add a closing `})` at line 2404.
+
+  // Let's verify if `activeToolProcess` and others are defined globally.
+  // Line 88: let activeToolProcess: ChildProcess | null = null; -> YES
+  // Line 89: let toolLogBuffer: string[] = []; -> YES
+
+  // So yes, I can just close the `whenReady` block early.
+
+  // BUT wait, does `createWindow` depend on anything? `createWindow` is called inside `whenReady`.
+  // The handlers don't depend on `win` being created, except maybe `dialog:showMessageBox`.
+  // Let's check `dialog:showMessageBox` at line 260. That is INSIDE `whenReady`.
+  // That works.
+
+  // The handlers I want to move are `run-python-script-capture` (line 2406) and `run-tool` (line 2478).
+  // If I close `whenReady` at 2404, then:
+  // `run-python-script-capture` becomes global.
+  // `run-tool` becomes global.
+  // `stop-tool` usage of `activeToolProcess` works (global).
+
+  // Is there anything below 2404 that DEPENDS on `whenReady` scope?
+  // - `ensure-dir-exists`: uses fs, ok.
+  // - `open-path`: uses shell, ok.
+  // - `open-url`: uses shell, ok.
+  // - `get-recent-projects`: uses fs, ok.
+  // - `add-recent-project`: uses fs, ok.
+  // - `remove-recent-project`: uses fs, ok.
+  // - `rename-project-folder`: uses fs, ok.
+
+  // It seems safe to move ALL these tool/project handlers to global scope.
+  // This is much cleaner anyway.
+
+  // Plan: 
+  // 1. Insert `})` at line 2404.
+  // 2. Remove the `})` at the end of the file.
+
+
+  return new Promise((resolve) => {
+    try {
+      const { projectRoot } = resolveModelsRoot();
+      const pythonExe = getPythonExe(projectRoot);
+
+      // Handle path resolution
+      let fullScriptPath = '';
+      if (scriptPath.includes('/') || scriptPath.includes('\\')) {
+        if (path.isAbsolute(scriptPath)) {
+          fullScriptPath = scriptPath;
+        } else {
+          fullScriptPath = path.join(projectRoot, scriptPath);
+        }
+      } else {
+        fullScriptPath = path.join(projectRoot, 'tools', scriptPath);
+      }
+
+      // Fallback check
+      if (!fs.existsSync(fullScriptPath)) {
+        // Fallback to backend/core/tools if not found
+        const fallback = path.join(APP_ROOT_DIR, 'app/backend/core/tools', path.basename(scriptPath));
+        if (fs.existsSync(fallback)) {
+          fullScriptPath = fallback;
+        }
+        // Don't fail yet, might be valid relative path handled by something else, but here we expect full path to exist
+        if (!fs.existsSync(fullScriptPath)) {
+          resolve({ success: false, error: `Script not found: ${fullScriptPath}` });
+          return;
+        }
+      }
+
+      const toolsDir = path.dirname(fullScriptPath);
+      console.log(`[ScriptCapture] Running: ${pythonExe} ${fullScriptPath} ${args.join(' ')}`);
+
+      const proc = spawn(pythonExe, [fullScriptPath, ...args], {
+        cwd: toolsDir,
+        env: {
+          ...process.env,
+          PYTHONUTF8: '1',
+          PYTHONIOENCODING: 'utf-8'
+        }
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      proc.stdout.on('data', (data) => stdout += data.toString());
+      proc.stderr.on('data', (data) => stderr += data.toString());
+
+      proc.on('close', (code) => {
+        resolve({
+          success: code === 0,
+          stdout,
+          stderr,
+          code
+        });
+      });
+
+      proc.on('error', (err) => {
+        resolve({ success: false, error: err.message });
+      });
+
+    } catch (e: any) {
+      resolve({ success: false, error: e.message });
+    }
+  });
+});
+
+// --- Toolbox IPC ---
+let activeToolScriptName: string | null = null;
+let isManuallyStopped = false;
+ipcMain.handle('run-tool', async (_event, { scriptName, args = [], online = false }: { scriptName: string, args: string[], online?: boolean }) => {
+  if (activeToolProcess) {
+    return { success: false, error: "已有工具正在运行中" };
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const { projectRoot } = resolveModelsRoot();
+      const pythonExe = getPythonExe(projectRoot);
+
+      let scriptPath = '';
+      let toolsDir = '';
+
+      // Check if scriptName is already a path (relative or absolute)
+      if (scriptName.includes('/') || scriptName.includes('\\')) {
+        if (path.isAbsolute(scriptName)) {
+          scriptPath = scriptName;
+        } else {
+          scriptPath = path.join(projectRoot, scriptName);
+        }
+        toolsDir = path.dirname(scriptPath);
+      } else {
+        // Default behavior: look in backend/core/tools first, then root/tools
+        const coreToolsDir = path.join(APP_ROOT_DIR, 'app/backend/core/tools');
+        const rootToolsDir = path.join(projectRoot, 'tools');
+
+        if (fs.existsSync(path.join(coreToolsDir, scriptName))) {
+          toolsDir = coreToolsDir;
+          scriptPath = path.join(coreToolsDir, scriptName);
+        } else if (fs.existsSync(path.join(rootToolsDir, scriptName))) {
+          toolsDir = rootToolsDir;
+          scriptPath = path.join(rootToolsDir, scriptName);
+        } else {
+          // Fallback to legacy behavior or error
+          toolsDir = rootToolsDir;
+          scriptPath = path.join(rootToolsDir, scriptName);
+        }
+      }
+
+      if (!fs.existsSync(scriptPath)) {
+        resolve({ success: false, error: `找不到工具脚本: ${scriptPath}` });
+        return;
+      }
+
+      toolLogBuffer = [];
+      activeToolScriptName = scriptName;
+      isManuallyStopped = false;
+      console.log(`[Toolbox] Running: ${pythonExe} ${scriptPath} ${args.join(' ')}`);
+
+      const env: any = {
+        ...process.env,
+        PYTHONUTF8: '1',
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUNBUFFERED: '1',
+      };
+
+      if (!online) {
+        env.HF_HUB_OFFLINE = '1';
+        env.TRANSFORMERS_OFFLINE = '1';
+      }
+
+      activeToolProcess = spawn(pythonExe, [scriptPath, ...args], {
+        cwd: toolsDir,
+        env
+      });
+
+      // Helper to clean logs
+      const cleanLog = (data: any) => {
+        let str = data.toString();
+        str = str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+
+        // Normalize Windows newlines
+        str = str.replace(/\r\n/g, '\n');
+
+        // Handle progress bars (carriage return)
+        if (str.includes('\r')) {
+          // Split by \r and take the last non-empty part
+          const parts = str.split('\r').filter((p: string) => p.trim().length > 0);
+          if (parts.length > 0) {
+            str = parts[parts.length - 1];
+          } else {
+            // If everything was filtered out (e.g. only \r), result is empty
+            // But we might want to keep newlines if they existed before?
+            // Simplest fix for now: if we have parts, take the last one.
+            // If str resulted in empty after filter, it will be caught by the !str.trim() check below.
+          }
+        }
+        return str;
+      };
+
+      activeToolProcess.stdout?.on('data', (data) => {
+        const str = cleanLog(data);
+        if (!str.trim()) return;
+        console.log(`[Tool Out]: ${str}`);
+        _event.sender.send('tool-output', str);
+        toolLogBuffer.push(str);
+        if (toolLogBuffer.length > 1000) toolLogBuffer.shift();
+      });
+
+      activeToolProcess.stderr?.on('data', (data) => {
+        const str = cleanLog(data);
+        if (!str.trim()) return;
+        console.error(`[Tool Err]: ${str}`);
+        _event.sender.send('tool-output', str);
+        toolLogBuffer.push(str);
+        if (toolLogBuffer.length > 1000) toolLogBuffer.shift();
+      });
+
+      activeToolProcess.on('close', (code) => {
+        const timestamp = new Date().toLocaleTimeString();
+        const isSuccess = code === 0 && !isManuallyStopped;
+        const msg = `\n--- [${timestamp}] Task ${isSuccess ? 'Finished' : (isManuallyStopped ? 'Stopped' : 'Failed')} (Code ${code}) ---\n`;
+        console.log(`[Toolbox] Process exited with code ${code}`);
+
+        if (win) {
+          win.webContents.send('tool-status', { type: 'finished', code, isSuccess, scriptName });
+        }
+        toolLogBuffer.push(msg); // Keep this line for logging the message
+        activeToolProcess = null;
+        activeToolScriptName = null;
+        resolve({ success: isSuccess });
+      });
+
+      // Removed early resolve to wait for process completion
+
+    } catch (e: any) {
+      console.error("[Toolbox] Start failed:", e);
+      resolve({ success: false, error: e.message });
+    }
+  });
+});
+
+ipcMain.handle('stop-tool', async () => {
+  if (activeToolProcess) {
+    try {
+      if (process.platform === 'win32') {
+        exec(`taskkill /pid ${activeToolProcess.pid} /T /F`);
+      } else {
+        activeToolProcess.kill('SIGKILL');
+      }
+      isManuallyStopped = true;
+      activeToolProcess = null;
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+  return { success: true };
+});
+
+ipcMain.handle('get-tool-status', async () => {
+  return { isRunning: !!activeToolProcess, pid: activeToolProcess?.pid, scriptName: activeToolScriptName };
+});
+
+ipcMain.handle('get-tool-logs', async () => {
+  return toolLogBuffer;
+});
+
+
+
+const RECENT_PROJECTS_FILE = path.join(app.getPath('userData'), 'recent_projects.json');
+
+const loadRecentProjects = () => {
+  try {
+    if (fs.existsSync(RECENT_PROJECTS_FILE)) {
+      const data = fs.readFileSync(RECENT_PROJECTS_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch (e) {
+    console.error("Failed to load recent projects:", e);
+  }
+  return [];
+};
+
+const saveRecentProjects = (projects: any[]) => {
+  try {
+    fs.writeFileSync(RECENT_PROJECTS_FILE, JSON.stringify(projects, null, 2), 'utf-8');
+  } catch (e) {
+    console.error("Failed to save recent projects:", e);
+  }
+};
+
+const getVerifiedProjects = () => {
+  let projects = loadRecentProjects();
+  try {
+    const { projectRoot } = resolveModelsRoot();
+    const outputDir = path.join(projectRoot, 'output');
+
+    if (fs.existsSync(outputDir)) {
+      const entries = fs.readdirSync(outputDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const fullPath = path.join(outputDir, entry.name);
+          // Any subdirectory in output is considered a project
+          const exists = projects.some((p: any) => path.relative(p.path, fullPath) === '');
+          if (!exists) {
+            projects.push({
+              name: entry.name,
+              path: fullPath,
+              lastModified: fs.statSync(fullPath).mtime.toLocaleString()
+            });
           }
         }
       }
-    } catch (e) {
-      console.error("Error scanning output dir:", e);
     }
+  } catch (e) {
+    console.error("Error scanning output dir:", e);
+  }
 
-    // Prepare for sort and verification
-    const verifiedProjects = [];
-    for (const p of projects) {
-      if (fs.existsSync(p.path)) {
-        try {
-          const stat = fs.statSync(p.path);
-          p.timestamp = stat.mtime.getTime();
-          p.lastModified = stat.mtime.toLocaleString();
-          verifiedProjects.push(p);
-        } catch (e) {
-          verifiedProjects.push(p);
-        }
+  // Prepare for sort and verification
+  const verifiedProjects = [];
+  for (const p of projects) {
+    if (fs.existsSync(p.path)) {
+      try {
+        const stat = fs.statSync(p.path);
+        p.timestamp = stat.mtime.getTime();
+        p.lastModified = stat.mtime.toLocaleString();
+        verifiedProjects.push(p);
+      } catch (e) {
+        verifiedProjects.push(p);
       }
     }
+  }
 
-    // Sort by timestamp descending
-    verifiedProjects.sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
-    return verifiedProjects;
-  };
+  // Sort by timestamp descending
+  verifiedProjects.sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
+  return verifiedProjects;
+};
 
-  ipcMain.handle('get-recent-projects', async () => {
-    return getVerifiedProjects();
-  });
+ipcMain.handle('get-recent-projects', async () => {
+  return getVerifiedProjects();
+});
 
-  ipcMain.handle('add-recent-project', async (_event, project) => {
-    const projects = loadRecentProjects();
-    // Deduplicate by path
-    const filtered = projects.filter((p: any) => p.path.toLowerCase() !== project.path.toLowerCase());
-    // Add new at top
-    filtered.unshift(project);
-    // Limit history size to 20
-    const limited = filtered.slice(0, 20);
-    saveRecentProjects(limited);
-    return getVerifiedProjects(); // Return full list including scanned
-  });
+ipcMain.handle('add-recent-project', async (_event, project) => {
+  const projects = loadRecentProjects();
+  // Deduplicate by path
+  const filtered = projects.filter((p: any) => p.path.toLowerCase() !== project.path.toLowerCase());
+  // Add new at top
+  filtered.unshift(project);
+  // Limit history size to 20
+  const limited = filtered.slice(0, 20);
+  saveRecentProjects(limited);
+  return getVerifiedProjects(); // Return full list including scanned
+});
 
-  ipcMain.handle('remove-recent-project', async (_event, projectPath) => {
+ipcMain.handle('remove-recent-project', async (_event, projectPath) => {
+  const projects = loadRecentProjects();
+  const filtered = projects.filter((p: any) => p.path.toLowerCase() !== projectPath.toLowerCase());
+  saveRecentProjects(filtered);
+  return getVerifiedProjects();
+});
+
+ipcMain.handle('delete-project-folder', async (_event, projectPath) => {
+  try {
+    // 1. Remove from history and settings
     const projects = loadRecentProjects();
     const filtered = projects.filter((p: any) => p.path.toLowerCase() !== projectPath.toLowerCase());
     saveRecentProjects(filtered);
-    return getVerifiedProjects();
-  });
 
-  ipcMain.handle('delete-project-folder', async (_event, projectPath) => {
-    try {
-      // 1. Remove from history and settings
-      const projects = loadRecentProjects();
-      const filtered = projects.filter((p: any) => p.path.toLowerCase() !== projectPath.toLowerCase());
-      saveRecentProjects(filtered);
-
-      const settings = loadSettings();
-      if (settings.projectLaunchParams) {
-        const normalized = projectPath.replace(/\\/g, '/').toLowerCase();
-        if (settings.projectLaunchParams[normalized]) {
-          delete settings.projectLaunchParams[normalized];
-          saveSettings(settings);
-        }
+    const settings = loadSettings();
+    if (settings.projectLaunchParams) {
+      const normalized = projectPath.replace(/\\/g, '/').toLowerCase();
+      if (settings.projectLaunchParams[normalized]) {
+        delete settings.projectLaunchParams[normalized];
+        saveSettings(settings);
       }
-
-      // 2. Delete folder from disk
-      if (fs.existsSync(projectPath)) {
-        await fs.promises.rm(projectPath, { recursive: true, force: true });
-        return { success: true, projects: getVerifiedProjects() }; // Return fresh scan
-      } else {
-        return { success: false, error: "Path does not exist", projects: getVerifiedProjects() };
-      }
-    } catch (error: any) {
-      console.error(`Failed to delete project folder: ${projectPath}`, error);
-      return { success: false, error: error.message };
     }
-  });
 
-  ipcMain.handle('rename-project-folder', async (_event, { oldPath, newName }) => {
-    try {
-      if (!fs.existsSync(oldPath)) {
-        return { success: false, error: "Path does not exist" };
-      }
-
-      const parentDir = path.dirname(oldPath);
-      const newPath = path.join(parentDir, newName);
-
-      if (fs.existsSync(newPath) && oldPath.toLowerCase() !== newPath.toLowerCase()) {
-        return { success: false, error: "Target name already exists" };
-      }
-
-      // Rename physical folder
-      fs.renameSync(oldPath, newPath);
-
-      // Update settings
-      const settings = loadSettings();
-      if (settings.projectLaunchParams) {
-        const normalizedOld = oldPath.replace(/\\/g, '/').toLowerCase();
-        const normalizedNew = newPath.replace(/\\/g, '/').toLowerCase();
-        if (settings.projectLaunchParams[normalizedOld]) {
-          settings.projectLaunchParams[normalizedNew] = settings.projectLaunchParams[normalizedOld];
-          delete settings.projectLaunchParams[normalizedOld];
-          saveSettings(settings);
-          console.log(`[Rename] Migrated launch params from ${normalizedOld} to ${normalizedNew}`);
-        }
-      }
-
-      // Update history
-      let projects = loadRecentProjects();
-      let updated = false;
-      projects = projects.map((p: any) => {
-        if (p.path.toLowerCase() === oldPath.toLowerCase()) {
-          updated = true;
-          return {
-            ...p,
-            name: newName,
-            path: newPath,
-            lastModified: new Date().toLocaleString()
-          };
-        }
-        return p;
-      });
-
-      if (updated) {
-        saveRecentProjects(projects);
-      }
-
-      return { success: true, newPath, projects: getVerifiedProjects() };
-
-    } catch (error: any) {
-      console.error(`Failed to rename project folder: ${oldPath}`, error);
-      return { success: false, error: error.message };
+    // 2. Delete folder from disk
+    if (fs.existsSync(projectPath)) {
+      await fs.promises.rm(projectPath, { recursive: true, force: true });
+      return { success: true, projects: getVerifiedProjects() }; // Return fresh scan
+    } else {
+      return { success: false, error: "Path does not exist", projects: getVerifiedProjects() };
     }
-  });
+  } catch (error: any) {
+    console.error(`Failed to delete project folder: ${projectPath}`, error);
+    return { success: false, error: error.message };
+  }
+});
 
-})
+ipcMain.handle('rename-project-folder', async (_event, { oldPath, newName }) => {
+  try {
+    if (!fs.existsSync(oldPath)) {
+      return { success: false, error: "Path does not exist" };
+    }
+
+    const parentDir = path.dirname(oldPath);
+    const newPath = path.join(parentDir, newName);
+
+    if (fs.existsSync(newPath) && oldPath.toLowerCase() !== newPath.toLowerCase()) {
+      return { success: false, error: "Target name already exists" };
+    }
+
+    // Rename physical folder
+    fs.renameSync(oldPath, newPath);
+
+    // Update settings
+    const settings = loadSettings();
+    if (settings.projectLaunchParams) {
+      const normalizedOld = oldPath.replace(/\\/g, '/').toLowerCase();
+      const normalizedNew = newPath.replace(/\\/g, '/').toLowerCase();
+      if (settings.projectLaunchParams[normalizedOld]) {
+        settings.projectLaunchParams[normalizedNew] = settings.projectLaunchParams[normalizedOld];
+        delete settings.projectLaunchParams[normalizedOld];
+        saveSettings(settings);
+        console.log(`[Rename] Migrated launch params from ${normalizedOld} to ${normalizedNew}`);
+      }
+    }
+
+    // Update history
+    let projects = loadRecentProjects();
+    let updated = false;
+    projects = projects.map((p: any) => {
+      if (p.path.toLowerCase() === oldPath.toLowerCase()) {
+        updated = true;
+        return {
+          ...p,
+          name: newName,
+          path: newPath,
+          lastModified: new Date().toLocaleString()
+        };
+      }
+      return p;
+    });
+
+    if (updated) {
+      saveRecentProjects(projects);
+    }
+
+    return { success: true, newPath, projects: getVerifiedProjects() };
+
+  } catch (error: any) {
+    console.error(`Failed to rename project folder: ${oldPath}`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// End of file (was closing app.whenReady here, but moved it up)
 
