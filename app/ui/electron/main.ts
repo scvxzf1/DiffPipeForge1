@@ -465,67 +465,42 @@ app.whenReady().then(() => {
     };
   });
 
-  // IPC Handler to run a python script and capture output (oneshot)
-  ipcMain.handle('run-python-script-capture', async (_event, { scriptPath, args }: { scriptPath: string, args: string[] }) => {
-    return new Promise((resolve) => {
-      try {
-        const { projectRoot } = resolveModelsRoot();
-        const pythonExe = getPythonExe(projectRoot);
+  // IPC Handler to get mask thumbnail for an image
+  ipcMain.handle('get-mask-thumbnail', async (_event, { originalPath, maskDirName, overrideMaskPath }: { originalPath: string, maskDirName?: string, overrideMaskPath?: string }) => {
+    try {
+      const filename = path.basename(originalPath);
+      const ext = path.extname(filename);
+      const nameWithoutExt = path.basename(filename, ext);
+      const maskFilename = nameWithoutExt + '.png'; // masks are always .png
 
-        // Resolve script path relative to project root if it's not absolute
-        let fullScriptPath = scriptPath;
-        if (!path.isAbsolute(scriptPath)) {
-          // Try explicit backend path first if accessible
-          if (app.isPackaged) {
-            // In packaged mode, we might need to adjust paths
-            // But generally scriptPath passed from UI is relative to project root
-            fullScriptPath = path.join(projectRoot, scriptPath);
-          } else {
-            fullScriptPath = path.join(projectRoot, scriptPath);
-          }
-        }
-
-        if (!fs.existsSync(fullScriptPath)) {
-          // Fallback: try finding it in backend/ if not found in root
-          const backendTry = path.join(projectRoot, 'backend', path.basename(scriptPath));
-          if (fs.existsSync(backendTry)) {
-            fullScriptPath = backendTry;
-          } else {
-            resolve({ success: false, error: `Script not found: ${fullScriptPath}` });
-            return;
-          }
-        }
-
-        console.log(`[RunCapture] Spawning: ${pythonExe} ${fullScriptPath} ${args.join(' ')}`);
-
-        const p = spawn(pythonExe, [fullScriptPath, ...args], {
-          env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
-        });
-
-        let stdout = '';
-        let stderr = '';
-
-        p.stdout.on('data', (data) => stdout += data.toString());
-        p.stderr.on('data', (data) => stderr += data.toString());
-
-        p.on('close', (code) => {
-          console.log(`[RunCapture] Exited with ${code}`);
-          if (code === 0) {
-            resolve({ success: true, stdout, stderr, code });
-          } else {
-            resolve({ success: false, error: `Process exited with code ${code}`, stdout, stderr, code });
-          }
-        });
-
-        p.on('error', (err) => {
-          resolve({ success: false, error: err.message });
-        });
-
-      } catch (e: any) {
-        resolve({ success: false, error: e.message });
+      let maskPath = '';
+      if (overrideMaskPath) {
+        // Use the override mask directory directly
+        maskPath = path.join(overrideMaskPath, maskFilename);
+      } else if (maskDirName) {
+        // Look in a subdirectory of the image's parent
+        const imageDir = path.dirname(originalPath);
+        maskPath = path.join(imageDir, maskDirName, maskFilename);
+      } else {
+        // Default: sibling directory with _masks suffix
+        const imageDir = path.dirname(originalPath);
+        maskPath = path.join(imageDir + '_masks', maskFilename);
       }
-    });
-  });
+
+      if (!fs.existsSync(maskPath)) {
+        return { success: false };
+      }
+
+      const thumb = await nativeImage.createThumbnailFromPath(maskPath, { width: 200, height: 200 });
+      return { success: true, thumbnail: thumb.toDataURL(), maskPath };
+    } catch (e) {
+      return { success: false };
+    }
+  })
+
+
+
+
 
   // IPC Handler for Python Backend
   ipcMain.handle('run-backend', async (_event: any, args: any[]) => {
@@ -2485,16 +2460,8 @@ enable_ar_bucket = true
 
         // Fallback check
         if (!fs.existsSync(fullScriptPath)) {
-          // Fallback to backend/core/tools if not found
-          const fallback = path.join(APP_ROOT_DIR, 'app/backend/core/tools', path.basename(scriptPath));
-          if (fs.existsSync(fallback)) {
-            fullScriptPath = fallback;
-          }
-          // Don't fail yet, might be valid relative path handled by something else, but here we expect full path to exist
-          if (!fs.existsSync(fullScriptPath)) {
-            resolve({ success: false, error: `Script not found: ${fullScriptPath}` });
-            return;
-          }
+          resolve({ success: false, error: `Script not found: ${fullScriptPath}` });
+          return;
         }
 
         const toolsDir = path.dirname(fullScriptPath);
@@ -2559,21 +2526,10 @@ enable_ar_bucket = true
           }
           toolsDir = path.dirname(scriptPath);
         } else {
-          // Default behavior: look in backend/core/tools first, then root/tools
-          const coreToolsDir = path.join(APP_ROOT_DIR, 'app/backend/core/tools');
+          // Default behavior: look in root/tools
           const rootToolsDir = path.join(projectRoot, 'tools');
-
-          if (fs.existsSync(path.join(coreToolsDir, scriptName))) {
-            toolsDir = coreToolsDir;
-            scriptPath = path.join(coreToolsDir, scriptName);
-          } else if (fs.existsSync(path.join(rootToolsDir, scriptName))) {
-            toolsDir = rootToolsDir;
-            scriptPath = path.join(rootToolsDir, scriptName);
-          } else {
-            // Fallback to legacy behavior or error
-            toolsDir = rootToolsDir;
-            scriptPath = path.join(rootToolsDir, scriptName);
-          }
+          toolsDir = rootToolsDir;
+          scriptPath = path.join(rootToolsDir, scriptName);
         }
 
         if (!fs.existsSync(scriptPath)) {
