@@ -2417,7 +2417,6 @@ enable_ar_bucket = true
   });
 
   // IPC Handler to run python script and capture output (oneshot)
-  console.log('Registering run-python-script-capture handler...');
   ipcMain.handle('run-python-script-capture', async (_event, { scriptPath, args = [] }: { scriptPath: string, args: string[] }) => {
     return new Promise((resolve) => {
       try {
