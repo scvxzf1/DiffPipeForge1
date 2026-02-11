@@ -264,7 +264,6 @@ export function MaskGenerator() {
 
         // On-demand model check
         if (modelExists !== true) {
-            showToast(t('common.checking_model'), 'info');
             const exists = await performModelCheck();
             if (!exists) {
                 // If model missing, show download dialog
