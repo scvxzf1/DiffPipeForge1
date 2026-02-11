@@ -111,6 +111,7 @@ export function Sidebar({ activeTab, onTabChange, theme, onThemeToggle }: Sideba
                     <Star className="w-3 h-3 text-yellow-400/50 group-hover:text-yellow-400 animate-twinkle fill-yellow-400/20" />
                     <span>{t('common.about')}</span>
                 </button>
+
             </GlassCard>
         </aside>
     );

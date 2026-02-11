@@ -130,3 +130,6 @@ DiffPipeForge_v1.0.0_Full_Portable.zip.sha256
 Update Packaging Logic.md
 segformer/
 上传.md
+upload_oss.py
+.env
+*.sha256

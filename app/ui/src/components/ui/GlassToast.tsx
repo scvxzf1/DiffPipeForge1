@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from './GlassCard';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type ToastType = 'error' | 'success';
+type ToastType = 'error' | 'success' | 'warning';
 
 interface Toast {
     id: number;
@@ -39,11 +39,13 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: number) =
         <div className="animate-in fade-in zoom-in-95 duration-300 slide-in-from-top-2">
             <GlassCard className={cn(
                 "px-4 py-2 flex items-center gap-2 backdrop-blur-md pointer-events-auto shadow-lg border",
-                toast.type === 'error'
-                    ? "bg-red-500/10 dark:bg-red-900/10 border-red-500/20 text-red-600 dark:text-red-400"
-                    : "bg-white/20 dark:bg-white/10 border-white/20 text-gray-800 dark:text-white"
+                toast.type === 'error' && "bg-red-500/10 dark:bg-red-900/10 border-red-500/20 text-red-600 dark:text-red-400",
+                toast.type === 'warning' && "bg-yellow-500/10 dark:bg-yellow-900/10 border-yellow-500/20 text-yellow-600 dark:text-yellow-400",
+                toast.type === 'success' && "bg-white/20 dark:bg-white/10 border-white/20 text-gray-800 dark:text-white"
             )}>
-                {toast.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                {toast.type === 'error' && <AlertCircle className="w-4 h-4" />}
+                {toast.type === 'warning' && <AlertTriangle className="w-4 h-4" />}
+                {toast.type === 'success' && <CheckCircle2 className="w-4 h-4" />}
                 <span className="text-sm font-medium">{toast.message}</span>
             </GlassCard>
         </div>

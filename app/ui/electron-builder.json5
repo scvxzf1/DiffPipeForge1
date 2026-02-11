@@ -62,6 +62,10 @@
     ],
     "artifactName": "${productName}-${version}-Windows.${ext}"
   },
+  "publish": {
+    "provider": "generic",
+    "url": "https://dp-update.oss-cn-beijing.aliyuncs.com/updates/"
+  },
   "nsis": {
     "oneClick": false,
     "perMachine": false,

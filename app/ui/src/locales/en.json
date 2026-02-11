@@ -724,5 +724,16 @@
         "local": "Local",
         "official": "Official",
         "more_diff_files": "... and {{count}} more different files"
+    },
+    "update": {
+        "check": "Check for Updates",
+        "checking": "Checking...",
+        "available": "New version available: {{version}}",
+        "not_available": "You are on the latest version",
+        "downloading": "Downloading update...",
+        "downloaded": "Update downloaded",
+        "restart": "Restart to Update",
+        "error": "Update error: {{error}}",
+        "check_tooltip": "Click to check for updates"
     }
 }

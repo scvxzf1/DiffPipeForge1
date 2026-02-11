@@ -382,8 +382,8 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                     trainLines.push(`mask_path = '${formData.mask_path.replace(/\\/g, '/')}'`);
                 }
 
-                const validControlPaths = isEditingModel ? formData.control_paths : [];
-                if (isEditingModel) {
+                const validControlPaths = isEditingModel ? formData.control_paths.filter(p => p && p.trim() !== '') : [];
+                if (isEditingModel && validControlPaths.length > 0) {
                     if (validControlPaths.length === 1) {
                         trainLines.push(`control_path = '${validControlPaths[0].replace(/\\/g, '/')}'`);
                     } else {
@@ -403,8 +403,8 @@ export function DatasetConfig({ mode = 'training', importedConfig, modelType, mo
                         trainLines.push(`mask_path = '${trainSet.mask_path.replace(/\\/g, '/')}'`);
                     }
 
-                    if (isEditingModel && trainSet.control_paths.some(p => p)) {
-                        const ctrlPaths = trainSet.control_paths.filter(p => p);
+                    if (isEditingModel) {
+                        const ctrlPaths = trainSet.control_paths.filter(p => p && p.trim() !== '');
                         if (ctrlPaths.length === 1) {
                             trainLines.push(`control_path = '${ctrlPaths[0].replace(/\\/g, '/')}'`);
                         } else if (ctrlPaths.length > 1) {

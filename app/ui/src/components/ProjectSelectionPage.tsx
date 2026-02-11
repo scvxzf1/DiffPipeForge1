@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { parse } from 'smol-toml';
 import { GlassButton } from './ui/GlassButton';
 import { GlassConfirmDialog } from './ui/GlassConfirmDialog';
-import { useGlassToast } from './ui/GlassToast';
+import { useGlassToast } from "./ui/GlassToast";
+import { UpdateChecker } from "./UpdateChecker";
 
 export interface ProjectSelectionPageProps {
     onSelect: (projectPath: string) => void;
@@ -162,15 +163,16 @@ export function ProjectSelectionPage({ onSelect }: ProjectSelectionPageProps) {
             <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] animate-blob pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[100px] animate-blob animation-delay-2000 pointer-events-none" />
 
+            <div className="absolute top-6 right-6 z-50">
+                <UpdateChecker />
+            </div>
+
             <div className="max-w-4xl w-full space-y-8 z-10 flex-1 flex flex-col justify-center">
                 <div className="text-center space-y-2">
                     <h1 className="text-6xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-violet-600 dark:from-blue-400 dark:to-violet-400 pb-2">
                         DiffPipe Forge
                     </h1>
-                    <h2 className="text-2xl font-bold tracking-tight text-gray-700 dark:text-gray-200">
-                        {t('project.select_title')}
-                    </h2>
-                    <p className="text-muted-foreground">{t('project.select_desc')}</p>
+
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto w-full">
