@@ -99,7 +99,6 @@ def get_segmentation(image, processor, model, device):
 # Edge Detail Processing (standalone, no ComfyUI dependency)
 # ============================================================
 
-def guided_filter(guide, src, radius, eps=1e-6):
     """Simple guided filter implementation using box filter (PIL blur)."""
 
     def box_filter(img, r):
