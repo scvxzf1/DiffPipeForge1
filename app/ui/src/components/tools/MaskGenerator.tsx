@@ -447,8 +447,36 @@ export function MaskGenerator() {
                         </div>
 
                         <div className="p-4 space-y-4">
-                            {/* Model Download Warning (if missing) - REMOVED as per user request to only prompt on run */}
-
+                            {/* Model Download Warning (if missing) */}
+                            {modelExists === false && (
+                                <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-200/90 text-xs flex items-center justify-between gap-4">
+                                    <span>{t('toolbox.mask.model_missing_hint')}</span>
+                                    <GlassButton
+                                        size="sm"
+                                        variant={isDownloading ? "outline" : "default"}
+                                        onClick={isDownloading ? stopTool : handleDownloadModel}
+                                        disabled={isRunning && !isDownloading}
+                                        className={cn(
+                                            "h-7 px-3 text-xs transition-all shrink-0",
+                                            isDownloading
+                                                ? "text-red-400 border-red-400/30 hover:bg-red-400/10 hover:border-red-400/50"
+                                                : "bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 border-yellow-500/30"
+                                        )}
+                                    >
+                                        {isDownloading ? (
+                                            <>
+                                                <StopCircle className="w-3 h-3 mr-1.5 animate-pulse" />
+                                                {t('common.stop')}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="w-3 h-3 mr-1.5" />
+                                                {t('toolbox.mask.download_model')}
+                                            </>
+                                        )}
+                                    </GlassButton>
+                                </div>
+                            )}
 
                             {/* Body Part Selection */}
                             <div className="space-y-3">
