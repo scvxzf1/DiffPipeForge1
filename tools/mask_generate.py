@@ -401,18 +401,23 @@ def main():
 
     if args.mode == "check":
         # Check both Segformer and VITMatte
+        print(f"DEBUG: Checking Segformer at: {model_abs_path}")
         seg_exists = (model_abs_path / "config.json").exists() and \
                      ((model_abs_path / "model.safetensors").exists() or
                       (model_abs_path / "pytorch_model.bin").exists())
         
+        print(f"DEBUG: Checking VITMatte at: {vitmatte_abs_path}")
         vit_exists = (vitmatte_abs_path / "config.json").exists() and \
                      ((vitmatte_abs_path / "model.safetensors").exists() or
                       (vitmatte_abs_path / "pytorch_model.bin").exists())
 
         is_exists = seg_exists and vit_exists
+        print(f"DEBUG: Segformer Exists: {seg_exists}")
+        print(f"DEBUG: VITMatte Exists: {vit_exists}")
         print(f"MODEL_EXISTS: {is_exists}")
         if not is_exists:
             logger.info(f"Model check failed. Segformer: {seg_exists}, VITMatte: {vit_exists}")
+            print(f"Model check failed. Segformer: {seg_exists}, VITMatte: {vit_exists}")
         return
 
     if args.mode == "download":
