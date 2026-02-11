@@ -132,10 +132,25 @@ export function MaskGenerator() {
             });
 
             const exists = result && result.stdout.includes('MODEL_EXISTS: True');
+
+            // Check for execution errors
+            if (!result.success && result.error) {
+                showToast(`Model Check Error: ${result.error}`, 'error');
+            } else if (!exists) {
+                // If it ran but exists is false, show why (maybe stderr has info)
+                if (result.stderr) {
+                    showToast(`Model Check Failed: ${result.stderr.substring(0, 100)}`, 'error');
+                } else if (result.stdout) {
+                    // Maybe unexpected stdout
+                    // showToast(`Model Check Output: ${result.stdout.substring(0, 50)}`, 'warning');
+                }
+            }
+
             setModelExists(exists);
             return exists;
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to check model status:", error);
+            showToast(`Check Exception: ${error.message}`, 'error');
             setModelExists(false);
             return false;
         }
