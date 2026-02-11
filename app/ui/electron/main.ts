@@ -465,38 +465,7 @@ app.whenReady().then(() => {
     };
   });
 
-  // IPC Handler to get mask thumbnail for an image
-  ipcMain.handle('get-mask-thumbnail', async (_event, { originalPath, maskDirName, overrideMaskPath }: { originalPath: string, maskDirName?: string, overrideMaskPath?: string }) => {
-    try {
-      const filename = path.basename(originalPath);
-      const ext = path.extname(filename);
-      const nameWithoutExt = path.basename(filename, ext);
-      const maskFilename = nameWithoutExt + '.png'; // masks are always .png
 
-      let maskPath = '';
-      if (overrideMaskPath) {
-        // Use the override mask directory directly
-        maskPath = path.join(overrideMaskPath, maskFilename);
-      } else if (maskDirName) {
-        // Look in a subdirectory of the image's parent
-        const imageDir = path.dirname(originalPath);
-        maskPath = path.join(imageDir, maskDirName, maskFilename);
-      } else {
-        // Default: sibling directory with _masks suffix
-        const imageDir = path.dirname(originalPath);
-        maskPath = path.join(imageDir + '_masks', maskFilename);
-      }
-
-      if (!fs.existsSync(maskPath)) {
-        return { success: false };
-      }
-
-      const thumb = await nativeImage.createThumbnailFromPath(maskPath, { width: 200, height: 200 });
-      return { success: true, thumbnail: thumb.toDataURL(), maskPath };
-    } catch (e) {
-      return { success: false };
-    }
-  })
 
 
 
@@ -788,10 +757,14 @@ app.whenReady().then(() => {
   // IPC Handler to get image thumbnail (compressed preview)
   ipcMain.handle('get-thumbnail', async (_event, filePath: string) => {
     try {
+      // nativeImage.createThumbnailFromPath is only available on macOS and Windows
+      if (process.platform === 'linux') {
+        return pathToFileURL(filePath).href;
+      }
       const thumb = await nativeImage.createThumbnailFromPath(filePath, { width: 200, height: 200 });
       return thumb.toDataURL();
     } catch (e) {
-      console.error("Failed to generate thumbnail for:", filePath, e);
+      // console.error("Failed to generate thumbnail for:", filePath, e);
       // Fallback to file URL if thumbnail fails
       return pathToFileURL(filePath).href;
     }
@@ -821,6 +794,10 @@ app.whenReady().then(() => {
 
       if (!fs.existsSync(maskPath)) {
         return { success: false };
+      }
+
+      if (process.platform === 'linux') {
+        return { success: true, thumbnail: pathToFileURL(maskPath).href, maskPath };
       }
 
       const thumb = await nativeImage.createThumbnailFromPath(maskPath, { width: 200, height: 200 });
