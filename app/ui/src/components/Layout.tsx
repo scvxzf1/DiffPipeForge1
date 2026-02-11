@@ -434,7 +434,7 @@ export default function AppLayout({ onBackToHome, projectPath, onProjectRenamed 
                     <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[100px] animate-blob animation-delay-2000" />
                 </div>
 
-                <div className="relative z-10 max-w-[1600px] mx-auto space-y-6">
+                <div className="relative z-10 w-full space-y-6">
                     <header className="flex items-center justify-between mb-8">
                         <div className="flex flex-col">
                             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">

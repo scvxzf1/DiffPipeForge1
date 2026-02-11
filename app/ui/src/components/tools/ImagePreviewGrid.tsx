@@ -13,11 +13,16 @@ interface ImagePreviewGridProps {
     autoRefresh?: boolean;
     refreshInterval?: number;
     isRestorable?: boolean;
+    showMasks?: boolean;
+    maskDirName?: string;
+    overrideMaskPath?: string;
+    refreshTrigger?: number | boolean;
 }
 
 interface ImageItem {
     path: string;
     thumbnail: string;
+    maskThumbnail?: string;
 }
 
 export function ImagePreviewGrid({
@@ -27,7 +32,11 @@ export function ImagePreviewGrid({
     title,
     autoRefresh = false,
     refreshInterval = 5000,
-    isRestorable = false
+    isRestorable = false,
+    showMasks = false,
+    maskDirName,
+    overrideMaskPath,
+    refreshTrigger
 }: ImagePreviewGridProps) {
     const { t } = useTranslation();
     const [images, setImages] = useState<ImageItem[]>([]);
@@ -61,7 +70,28 @@ export function ImagePreviewGrid({
                 setTotal(res.total || 0);
                 const items = await Promise.all(res.images.map(async (path: string) => {
                     const thumbnail = await window.ipcRenderer.invoke('get-thumbnail', path);
-                    return { path, thumbnail };
+                    let maskThumbnail = undefined;
+
+                    if (showMasks) {
+                        try {
+                            // Construct mask path: dir/masks/filename.png
+                            // We need to handle path joining properly
+                            // For now, let's assume we can invoke a backend helper or do simple string manipulation if guaranteed standard paths
+                            // But 'get-mask-thumbnail' effectively does this logic
+                            const maskRes = await window.ipcRenderer.invoke('get-mask-thumbnail', {
+                                originalPath: path,
+                                maskDirName,
+                                overrideMaskPath
+                            });
+                            if (maskRes.success) {
+                                maskThumbnail = maskRes.thumbnail;
+                            }
+                        } catch (e) {
+                            // ignore missing masks
+                        }
+                    }
+
+                    return { path, thumbnail, maskThumbnail };
                 }));
                 setImages(items);
             } else {
@@ -89,7 +119,7 @@ export function ImagePreviewGrid({
         return () => {
             if (intervalId) clearInterval(intervalId);
         };
-    }, [loadImages, autoRefresh, refreshInterval]);
+    }, [loadImages, autoRefresh, refreshInterval, refreshTrigger]);
 
     if (!directory) return null;
 
@@ -127,79 +157,121 @@ export function ImagePreviewGrid({
                 </h3>
             </div>
 
-            <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2 select-none">
-                {images.map((item, idx) => (
-                    <div
-                        key={idx}
-                        className={cn(
-                            "aspect-square rounded-md overflow-hidden border relative group cursor-pointer transition-all duration-200",
-                            selectedFiles.has(item.path)
-                                ? "border-primary ring-2 ring-primary bg-primary/20"
-                                : "bg-black/20 border-white/5"
-                        )}
-                        onClick={(e) => {
-                            if (isRestorable) {
-                                const newSet = new Set(selectedFiles);
-
-                                if (e.shiftKey && lastSelectedIndex !== null) {
-                                    // Range selection
-                                    const start = Math.min(lastSelectedIndex, idx);
-                                    const end = Math.max(lastSelectedIndex, idx);
-
-                                    // Add range to selection
-                                    for (let i = start; i <= end; i++) {
-                                        newSet.add(images[i].path);
-                                    }
-                                    // Update last index to current
-                                    setLastSelectedIndex(idx);
-                                } else {
-                                    // Normal selection toggle
-                                    if (newSet.has(item.path)) {
-                                        newSet.delete(item.path);
-                                    } else {
-                                        newSet.add(item.path);
-                                    }
-                                    setLastSelectedIndex(idx);
-                                }
-
-                                setSelectedFiles(newSet);
-                            } else {
-                                window.ipcRenderer.invoke('open-external', item.path);
-                            }
-                        }}
-                        title={item.path}
-                    >
-                        <img
-                            src={item.thumbnail}
-                            alt={`preview-${idx}`}
-                            className={cn(
-                                "w-full h-full object-cover transition-transform duration-300",
-                                !selectedFiles.has(item.path) && "group-hover:scale-110",
-                                selectedFiles.has(item.path) && "opacity-80 scale-95"
-                            )}
-                            loading="lazy"
-                        />
-                        {/* Hover Overlay / Selection Indicator */}
-                        <div className={cn(
-                            "absolute inset-0 transition-opacity flex items-center justify-center",
-                            selectedFiles.has(item.path) ? "opacity-100 bg-primary/20" : "opacity-0 bg-black/40 group-hover:opacity-100"
-                        )}>
-                            {isRestorable ? (
-                                <div className={cn(
-                                    "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
-                                    selectedFiles.has(item.path)
-                                        ? "bg-primary border-primary text-primary-foreground"
-                                        : "border-white/60 hover:border-white hover:bg-white/20"
-                                )}>
-                                    {selectedFiles.has(item.path) && <CheckCircle2 className="w-4 h-4" />}
+            {showMasks ? (
+                /* Paired layout: 2 pairs per row, each pair = original + mask side by side */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 select-none">
+                    {images.map((item, idx) => (
+                        <div
+                            key={idx}
+                            className="flex gap-2 rounded-lg overflow-hidden border border-white/5 bg-black/20 p-2 group"
+                            title={item.path}
+                        >
+                            {/* Original Image */}
+                            <div className="flex-1 flex flex-col gap-1">
+                                <span className="text-[10px] text-muted-foreground/60 truncate px-0.5">{t('toolbox.mask.original')}</span>
+                                <div
+                                    className="aspect-square rounded-md overflow-hidden cursor-pointer bg-black/30"
+                                    onClick={() => window.ipcRenderer.invoke('open-external', item.path)}
+                                >
+                                    <img
+                                        src={item.thumbnail}
+                                        alt={`original-${idx}`}
+                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                        loading="lazy"
+                                    />
                                 </div>
-                            ) : (
-                                <ImageIcon className="w-4 h-4 text-white/80" />
-                            )}
+                            </div>
+                            {/* Mask Image */}
+                            <div className="flex-1 flex flex-col gap-1">
+                                <span className="text-[10px] text-muted-foreground/60 truncate px-0.5">{t('toolbox.mask.mask_label')}</span>
+                                <div className="aspect-square rounded-md overflow-hidden bg-black/30 flex items-center justify-center">
+                                    {item.maskThumbnail ? (
+                                        <img
+                                            src={item.maskThumbnail}
+                                            alt={`mask-${idx}`}
+                                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <span className="text-[10px] text-muted-foreground/40 italic">{t('toolbox.mask.no_mask')}</span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                /* Original dense grid layout */
+                <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2 select-none">
+                    {images.map((item, idx) => (
+                        <div
+                            key={idx}
+                            className={cn(
+                                "aspect-square rounded-md overflow-hidden border relative group cursor-pointer transition-all duration-200",
+                                selectedFiles.has(item.path)
+                                    ? "border-primary ring-2 ring-primary bg-primary/20"
+                                    : "bg-black/20 border-white/5"
+                            )}
+                            onClick={(e) => {
+                                if (isRestorable) {
+                                    const newSet = new Set(selectedFiles);
+
+                                    if (e.shiftKey && lastSelectedIndex !== null) {
+                                        const start = Math.min(lastSelectedIndex, idx);
+                                        const end = Math.max(lastSelectedIndex, idx);
+                                        for (let i = start; i <= end; i++) {
+                                            newSet.add(images[i].path);
+                                        }
+                                        setLastSelectedIndex(idx);
+                                    } else {
+                                        if (newSet.has(item.path)) {
+                                            newSet.delete(item.path);
+                                        } else {
+                                            newSet.add(item.path);
+                                        }
+                                        setLastSelectedIndex(idx);
+                                    }
+
+                                    setSelectedFiles(newSet);
+                                } else {
+                                    window.ipcRenderer.invoke('open-external', item.path);
+                                }
+                            }}
+                            title={item.path}
+                        >
+                            <img
+                                src={item.thumbnail}
+                                alt={`preview-${idx}`}
+                                className={cn(
+                                    "w-full h-full object-cover transition-transform duration-300",
+                                    !selectedFiles.has(item.path) && "group-hover:scale-110",
+                                    selectedFiles.has(item.path) && "opacity-80 scale-95"
+                                )}
+                                loading="lazy"
+                            />
+
+                            {/* Hover Overlay / Selection Indicator */}
+                            <div className={cn(
+                                "absolute inset-0 transition-opacity flex items-center justify-center",
+                                selectedFiles.has(item.path) ? "opacity-100 bg-primary/20" : "opacity-0 bg-black/40 group-hover:opacity-100"
+                            )}>
+                                {isRestorable ? (
+                                    <div className={cn(
+                                        "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                        selectedFiles.has(item.path)
+                                            ? "bg-primary border-primary text-primary-foreground"
+                                            : "border-white/60 hover:border-white hover:bg-white/20"
+                                    )}>
+                                        {selectedFiles.has(item.path) && <CheckCircle2 className="w-4 h-4" />}
+                                    </div>
+                                ) : (
+                                    <ImageIcon className="w-4 h-4 text-white/80" />
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {images.length < total && (
                 <div className="flex justify-center pt-2">

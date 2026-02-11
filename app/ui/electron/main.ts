@@ -199,6 +199,12 @@ app.whenReady().then(() => {
     return await dialog.showOpenDialog(win, options)
   })
 
+  // IPC Handler for message box
+  ipcMain.handle('dialog:showMessageBox', async (_event, options) => {
+    if (!win) return { response: 0 }
+    return await dialog.showMessageBox(win, options)
+  })
+
   // IPC Handler for directory creation
   ipcMain.handle('ensure-dir', async (_event: any, dirPath: string) => {
     return new Promise((resolve, reject) => {
@@ -698,6 +704,39 @@ app.whenReady().then(() => {
       console.error("Failed to generate thumbnail for:", filePath, e);
       // Fallback to file URL if thumbnail fails
       return pathToFileURL(filePath).href;
+    }
+  })
+
+  // IPC Handler to get mask thumbnail for an image
+  ipcMain.handle('get-mask-thumbnail', async (_event, { originalPath, maskDirName, overrideMaskPath }: { originalPath: string, maskDirName?: string, overrideMaskPath?: string }) => {
+    try {
+      const filename = path.basename(originalPath);
+      const ext = path.extname(filename);
+      const nameWithoutExt = path.basename(filename, ext);
+      const maskFilename = nameWithoutExt + '.png'; // masks are always .png
+
+      let maskPath = '';
+      if (overrideMaskPath) {
+        // Use the override mask directory directly
+        maskPath = path.join(overrideMaskPath, maskFilename);
+      } else if (maskDirName) {
+        // Look in a subdirectory of the image's parent
+        const imageDir = path.dirname(originalPath);
+        maskPath = path.join(imageDir, maskDirName, maskFilename);
+      } else {
+        // Default: sibling directory with _masks suffix
+        const imageDir = path.dirname(originalPath);
+        maskPath = path.join(imageDir + '_masks', maskFilename);
+      }
+
+      if (!fs.existsSync(maskPath)) {
+        return { success: false };
+      }
+
+      const thumb = await nativeImage.createThumbnailFromPath(maskPath, { width: 200, height: 200 });
+      return { success: true, thumbnail: thumb.toDataURL(), maskPath };
+    } catch (e) {
+      return { success: false };
     }
   })
 
@@ -2310,6 +2349,76 @@ enable_ar_bucket = true
     }
   });
 
+  // IPC Handler to run python script and capture output (oneshot)
+  ipcMain.handle('run-python-script-capture', async (_event, { scriptPath, args = [] }: { scriptPath: string, args: string[] }) => {
+    return new Promise((resolve) => {
+      try {
+        const { projectRoot } = resolveModelsRoot();
+        const pythonExe = getPythonExe(projectRoot);
+
+        // Handle path resolution
+        let fullScriptPath = '';
+        if (scriptPath.includes('/') || scriptPath.includes('\\')) {
+          if (path.isAbsolute(scriptPath)) {
+            fullScriptPath = scriptPath;
+          } else {
+            fullScriptPath = path.join(projectRoot, scriptPath);
+          }
+        } else {
+          fullScriptPath = path.join(projectRoot, 'tools', scriptPath);
+        }
+
+        // Fallback check
+        if (!fs.existsSync(fullScriptPath)) {
+          // Fallback to backend/core/tools if not found
+          const fallback = path.join(APP_ROOT_DIR, 'app/backend/core/tools', path.basename(scriptPath));
+          if (fs.existsSync(fallback)) {
+            fullScriptPath = fallback;
+          }
+          // Don't fail yet, might be valid relative path handled by something else, but here we expect full path to exist
+          if (!fs.existsSync(fullScriptPath)) {
+            resolve({ success: false, error: `Script not found: ${fullScriptPath}` });
+            return;
+          }
+        }
+
+        const toolsDir = path.dirname(fullScriptPath);
+        console.log(`[ScriptCapture] Running: ${pythonExe} ${fullScriptPath} ${args.join(' ')}`);
+
+        const proc = spawn(pythonExe, [fullScriptPath, ...args], {
+          cwd: toolsDir,
+          env: {
+            ...process.env,
+            PYTHONUTF8: '1',
+            PYTHONIOENCODING: 'utf-8'
+          }
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        proc.stdout.on('data', (data) => stdout += data.toString());
+        proc.stderr.on('data', (data) => stderr += data.toString());
+
+        proc.on('close', (code) => {
+          resolve({
+            success: code === 0,
+            stdout,
+            stderr,
+            code
+          });
+        });
+
+        proc.on('error', (err) => {
+          resolve({ success: false, error: err.message });
+        });
+
+      } catch (e: any) {
+        resolve({ success: false, error: e.message });
+      }
+    });
+  });
+
   // --- Toolbox IPC ---
   let activeToolScriptName: string | null = null;
   let isManuallyStopped = false;
@@ -2322,11 +2431,38 @@ enable_ar_bucket = true
       try {
         const { projectRoot } = resolveModelsRoot();
         const pythonExe = getPythonExe(projectRoot);
-        const toolsDir = path.join(projectRoot, 'tools');
-        const scriptPath = path.join(toolsDir, scriptName);
+
+        let scriptPath = '';
+        let toolsDir = '';
+
+        // Check if scriptName is already a path (relative or absolute)
+        if (scriptName.includes('/') || scriptName.includes('\\')) {
+          if (path.isAbsolute(scriptName)) {
+            scriptPath = scriptName;
+          } else {
+            scriptPath = path.join(projectRoot, scriptName);
+          }
+          toolsDir = path.dirname(scriptPath);
+        } else {
+          // Default behavior: look in backend/core/tools first, then root/tools
+          const coreToolsDir = path.join(APP_ROOT_DIR, 'app/backend/core/tools');
+          const rootToolsDir = path.join(projectRoot, 'tools');
+
+          if (fs.existsSync(path.join(coreToolsDir, scriptName))) {
+            toolsDir = coreToolsDir;
+            scriptPath = path.join(coreToolsDir, scriptName);
+          } else if (fs.existsSync(path.join(rootToolsDir, scriptName))) {
+            toolsDir = rootToolsDir;
+            scriptPath = path.join(rootToolsDir, scriptName);
+          } else {
+            // Fallback to legacy behavior or error
+            toolsDir = rootToolsDir;
+            scriptPath = path.join(rootToolsDir, scriptName);
+          }
+        }
 
         if (!fs.existsSync(scriptPath)) {
-          resolve({ success: false, error: `找不到工具脚本: ${scriptName}` });
+          resolve({ success: false, error: `找不到工具脚本: ${scriptPath}` });
           return;
         }
 
@@ -2357,11 +2493,21 @@ enable_ar_bucket = true
           let str = data.toString();
           str = str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 
+          // Normalize Windows newlines
           str = str.replace(/\r\n/g, '\n');
 
+          // Handle progress bars (carriage return)
           if (str.includes('\r')) {
-            const lines = str.split('\r');
-            str = lines[lines.length - 1];
+            // Split by \r and take the last non-empty part
+            const parts = str.split('\r').filter((p: string) => p.trim().length > 0);
+            if (parts.length > 0) {
+              str = parts[parts.length - 1];
+            } else {
+              // If everything was filtered out (e.g. only \r), result is empty
+              // But we might want to keep newlines if they existed before?
+              // Simplest fix for now: if we have parts, take the last one.
+              // If str resulted in empty after filter, it will be caught by the !str.trim() check below.
+            }
           }
           return str;
         };

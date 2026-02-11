@@ -63,7 +63,12 @@ export function HelpIcon({ text, className }: HelpIconProps) {
                             <span>{t('help.title')}</span>
                         </div>
                         <button
-                            onClick={() => setIsOpen(false)}
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsOpen(false);
+                            }}
                             className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                         >
                             <X className="w-4 h-4" />
@@ -74,7 +79,12 @@ export function HelpIcon({ text, className }: HelpIconProps) {
                     </div>
                     <div className="mt-4 flex justify-end">
                         <button
-                            onClick={() => setIsOpen(false)}
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsOpen(false);
+                            }}
                             className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:opacity-90 transition-opacity"
                         >
                             {t('help.close')}
@@ -87,7 +97,11 @@ export function HelpIcon({ text, className }: HelpIconProps) {
             {isOpen && (
                 <div
                     className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[90]"
-                    onClick={() => setIsOpen(false)}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsOpen(false);
+                    }}
                 />
             )}
         </div>

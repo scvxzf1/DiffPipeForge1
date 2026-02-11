@@ -41,3 +41,4 @@ python-dotenv
 qwen-vl-utils
 modelscope
 huggingface_hub
+alibabacloud_oss_v2
