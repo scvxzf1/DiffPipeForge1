@@ -1,0 +1,113 @@
+天冬AI制作：https://space.bilibili.com/32275117
+==========================================
+[INFO] 检查 Node.js 环境...
+[INFO] Node.js 就绪: v24.13.0
+[INFO] 正在启动开发服务器...
+
+> diffpipe-forge@1.3.0 dev
+> vite
+
+vite v5.4.21 building for development...
+
+watching for file changes...
+vite v5.4.21 building for development...
+
+watching for file changes...
+
+build started...
+
+build started... (x2)
+
+  VITE v5.4.21  ready in 480 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+✓ 1 modules transformed.
+dist-electron/preload.mjs  0.95 kB │ gzip: 0.33 kB
+built in 342ms.
+✓ 1 modules transformed.
+[vite]: Rollup failed to resolve import "electron-updater" from "/home/scv/sda1/DiffPipeForge1/app/ui/electron/main.ts".
+This is most likely unintended because it can break your application at runtime.
+If you do want to externalize this module explicitly add it to
+`build.rollupOptions.external`
+transforming (7) node_modules/smol-toml/dist/struct.js=========================================
+App started at 2026/2/12 01:43:30
+Version: 1.3.0
+Platform: linux (x64)
+Packaged: false
+=========================================
+App is ready, creating window...
+createWindow called
+BrowserWindow created, id: 1
+
+(electron:33409): IBUS-WARNING **: 01:43:34.290: electron has no capability of surrounding-text feature
+[Session] Explicitly locked to: /home/scv/sda1/DiffPipeForge1/output/samesize-anima
+[PythonLookup] Detected Conda environment: df-forge
+Starting TensorBoard on localhost:6006 for dir /home/scv/sda1/DiffPipeForge1/output/samesize-anima
+Starting TensorBoard on localhost:6006 for dir /home/scv/sda1/DiffPipeForge1/output/samesize-anima
+[PythonLookup] Detected Conda environment: df-forge
+Starting TensorBoard on localhost:6006 for dir /home/scv/sda1/DiffPipeForge1/output/samesize-anima
+Starting TensorBoard on localhost:6006 for dir /home/scv/sda1/DiffPipeForge1/output/samesize-anima
+[PythonLookup] Detected Conda environment: df-forge
+[TB Err]: /home/scv/miniconda3/envs/df-forge/lib/python3.12/site-packages/tensorboard/default.py:30: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+[TB] Port 6006 is ready.
+[TB] Port 6006 is ready.
+[TB Err]: TensorFlow installation not found - running with reduced feature set.
+
+[TB Err]: 
+NOTE: Using experimental fast data loading logic. To disable, pass
+    "--load_fast=false" and report issues on GitHub. More details:
+    https://github.com/tensorflow/tensorboard/issues/4784
+
+
+[TB Err]: E0212 01:43:35.674491 136907184105280 program.py:300] TensorBoard could not bind to port 6006, it was already in use
+ERROR: TensorBoard could not bind to port 6006, it was already in use
+
+Error occurred in handler for 'run-python-script-capture': Error: No handler registered for 'run-python-script-capture'
+    at WebContents.<anonymous> (node:electron/js2c/browser_init:2:83054)
+    at WebContents.emit (node:events:519:28)
+Error occurred in handler for 'run-python-script-capture': Error: No handler registered for 'run-python-script-capture'
+    at WebContents.<anonymous> (node:electron/js2c/browser_init:2:83054)
+    at WebContents.emit (node:events:519:28)
+df-forge) scv@scv-MS-7885:~/sda1/DiffPipeForge1/tools$ python mask_generate.py --mode check --model_path segformer/segformer_b2_clothes
+MODEL_EXISTS: True
+[PythonLookup] Detected Conda environment: df-forge
+[Toolbox] Running: /home/scv/miniconda3/envs/df-forge/bin/python /home/scv/sda1/DiffPipeForge1/tools/mask_generate.py --mode download --model_path segformer/segformer_b2_clothes --source modelscope --model_type all
+[Tool Err]: 2026-02-12 01:43:47,559 - INFO - Downloading Segformer...
+2026-02-12 01:43:47,559 - INFO - Downloading segformer model (Tiandong/segformer_b2_clothes) to /home/scv/sda1/DiffPipeForge1/tools/segformer/segformer_b2_clothes using modelscope...
+
+[Tool Err]: /home/scv/miniconda3/envs/df-forge/lib/python3.12/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+
+[Tool Out]: Downloading Model from https://www.modelscope.cn to directory: /home/scv/sda1/DiffPipeForge1/tools/segformer/segformer_b2_clothes
+
+[Tool Err]: 2026-02-12 01:43:53,202 - INFO - segformer model download completed successfully.
+2026-02-12 01:43:53,203 - INFO - Downloading VITMatte...
+
+[Tool Err]: 2026-02-12 01:43:53,203 - INFO - Downloading vitmatte model (Tiandong/vitmatte-small-composition-1k) to /home/scv/sda1/DiffPipeForge1/tools/segformer/vitmatte-small-composition-1k using modelscope...
+
+[Tool Out]: Downloading Model from https://www.modelscope.cn to directory: /home/scv/sda1/DiffPipeForge1/tools/segformer/vitmatte-small-composition-1k
+
+[Tool Err]: 2026-02-12 01:43:57,747 - INFO - vitmatte model download completed successfully.
+
+[Tool Out]: DOWNLOAD_SUCCESS
+
+[Toolbox] Process exited with code 0
+Error occurred in handler for 'run-python-script-capture': Error: No handler registered for 'run-python-script-capture'
+    at WebContents.<anonymous> (node:electron/js2c/browser_init:2:83054)
+    at WebContents.emit (node:events:519:28)
+Error occurred in handler for 'run-python-script-capture': Error: No handler registered for 'run-python-script-capture'
+    at WebContents.<anonymous> (node:electron/js2c/browser_init:2:83054)
+    at WebContents.emit (node:events:519:28)
+Error occurred in handler for 'run-python-script-capture': Error: No handler registered for 'run-python-script-capture'
+    at WebContents.<anonymous> (node:electron/js2c/browser_init:2:83054)
+    at WebContents.emit (node:events:519:28)
+Error occurred in handler for 'run-python-script-capture': Error: No handler registered for 'run-python-script-capture'
+    at WebContents.<anonymous> (node:electron/js2c/browser_init:2:83054)
+    at WebContents.emit (node:events:519:28)
+
+
+

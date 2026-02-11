@@ -123,21 +123,34 @@ export function MaskGenerator() {
         sync();
     }, []);
 
-    const checkModelStatus = async () => {
+    const checkModelStatus = async (retryCount = 0) => {
         try {
+            // @ts-ignore
             const result = await window.ipcRenderer.invoke('run-python-script-capture', {
                 scriptPath: 'tools/mask_generate.py',
                 args: ['--mode', 'check', '--model_path', MODEL_PATH]
             });
 
-            if (result && result.stdout.includes('MODEL_EXISTS: True')) {
+            if (result && result.stdout && result.stdout.includes('MODEL_EXISTS: True')) {
                 setModelExists(true);
+            } else {
+                // If result is undefined or error, log it but retry if under limit
+                // Check if it's the "No handler" error or similar
+                if (result && result.error && result.error.includes('No handler registered')) {
+                    throw new Error(result.error);
+                }
+                setModelExists(false);
+            }
+        } catch (error: any) {
+            console.error(`Failed to check model status (attempt ${retryCount + 1}):`, error);
+
+            // Retry logic for specific errors or general failures in dev mode
+            if (retryCount < 3) {
+                console.log(`Retrying model check in 1000ms...`);
+                setTimeout(() => checkModelStatus(retryCount + 1), 1000);
             } else {
                 setModelExists(false);
             }
-        } catch (error) {
-            console.error("Failed to check model status:", error);
-            setModelExists(false);
         }
     };
 
