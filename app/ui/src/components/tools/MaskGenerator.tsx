@@ -769,7 +769,7 @@ export function MaskGenerator() {
                                     onClick={runTool}
                                     variant="default"
                                     className="gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 border-0"
-                                    disabled={isDownloading || isRunning || selectedLabels.size === 0}
+                                    disabled={isDownloading || isRunning}
                                 >
                                     <Play className="w-4 h-4 fill-current" />
                                     {t('common.start')}
