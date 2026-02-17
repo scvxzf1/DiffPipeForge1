@@ -94,8 +94,8 @@ Simply run the `start.bat` file in the project root:
 #### Linux
 Run the `start.sh` script in the project root:
 ```bash
-chmod +x start.sh
-./start.sh
+chmod +x start_with_submodules.sh
+./start_with_submodules.sh
 ```
 
 ### Your First Training Session
