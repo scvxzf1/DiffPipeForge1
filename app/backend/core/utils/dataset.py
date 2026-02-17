@@ -1162,6 +1162,52 @@ class DatasetManager:
         self.trust_cache = trust_cache
         self.caching_batch_size = caching_batch_size
         self.datasets = []
+        self.text_encoder_offload_percent = self._resolve_text_encoder_offload_percent()
+        num_text_encoders = len(self.text_encoders)
+        offload_count = min(
+            num_text_encoders,
+            max(0, int(round(num_text_encoders * self.text_encoder_offload_percent)))
+        )
+        self.keep_text_encoder_on_gpu_count = num_text_encoders - offload_count
+        self.pinned_text_encoder_indices = set(
+            range(1, self.keep_text_encoder_on_gpu_count + 1)
+        )
+        if is_main_process() and num_text_encoders > 0:
+            percent_for_log = int(round(self.text_encoder_offload_percent * 100))
+            print(
+                f'Text encoder layer offloading: percent={percent_for_log}%, '
+                f'text_encoders={num_text_encoders}, keep_on_gpu={self.keep_text_encoder_on_gpu_count}, '
+                f'offload={offload_count}'
+            )
+
+    def _resolve_text_encoder_offload_percent(self):
+        def parse_percent(value):
+            try:
+                percent = float(value)
+            except (TypeError, ValueError):
+                return None
+            if percent < 0:
+                percent = 0.0
+            if percent > 1.0:
+                if percent <= 100.0:
+                    percent = percent / 100.0
+                else:
+                    percent = 1.0
+            return max(0.0, min(1.0, percent))
+
+        config = self.model.config if isinstance(self.model.config, dict) else {}
+        model_config = config.get('model', {}) if isinstance(config.get('model', {}), dict) else {}
+
+        raw_percent = config.get('layer_offloading_text_encoder_percent', None)
+        if raw_percent is None:
+            raw_percent = model_config.get('layer_offloading_text_encoder_percent', None)
+
+        # Keep historical behavior (offload as much as possible) if not explicitly configured.
+        if raw_percent is None:
+            return 1.0
+
+        parsed = parse_percent(raw_percent)
+        return 1.0 if parsed is None else parsed
 
     def register(self, dataset):
         self.datasets.append(dataset)
@@ -1248,6 +1294,8 @@ class DatasetManager:
             if next(self.submodels[id].parameters()).device.type != 'cuda':
                 for i, submodel in enumerate(self.submodels):
                     if i != id:
+                        if i in self.pinned_text_encoder_indices:
+                            continue
                         submodel.to('cpu')
                 self.submodels[id].to('cuda')
         else:

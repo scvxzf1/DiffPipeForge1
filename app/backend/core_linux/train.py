@@ -139,6 +139,92 @@ def set_config_defaults(config):
     config.setdefault('x_axis_examples', False)
 
 
+def _parse_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ['1', 'true', 'yes', 'on']
+    return bool(value)
+
+
+def _parse_layer_offloading_percent(value):
+    try:
+        percent = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+    if percent < 0:
+        percent = 0.0
+    if percent > 1.0:
+        if percent <= 100.0:
+            percent = percent / 100.0
+        else:
+            percent = 1.0
+    return max(0.0, min(1.0, percent))
+
+
+def _resolve_blocks_to_swap(config, model):
+    raw_blocks_to_swap = config.get('blocks_to_swap', 0)
+    try:
+        explicit_blocks_to_swap = int(raw_blocks_to_swap)
+    except (TypeError, ValueError):
+        explicit_blocks_to_swap = 0
+    explicit_blocks_to_swap = max(0, explicit_blocks_to_swap)
+
+    if explicit_blocks_to_swap > 0:
+        return explicit_blocks_to_swap, False, None
+
+    model_config = config.get('model', {})
+    layer_offloading = _parse_bool(
+        config.get('layer_offloading', model_config.get('layer_offloading', False))
+    )
+    layer_offloading_percent_value = config.get('layer_offloading_percent', None)
+    if layer_offloading_percent_value is None:
+        layer_offloading_percent_value = config.get('layer_offloading_transformer_percent', None)
+    if layer_offloading_percent_value is None:
+        layer_offloading_percent_value = model_config.get('layer_offloading_percent', None)
+    if layer_offloading_percent_value is None:
+        layer_offloading_percent_value = model_config.get('layer_offloading_transformer_percent', 0.0)
+
+    layer_offloading_percent = _parse_layer_offloading_percent(layer_offloading_percent_value)
+    if not layer_offloading or layer_offloading_percent <= 0:
+        return 0, False, None
+
+    total_layers = len(model.to_layers())
+    max_swap_by_layers = max(total_layers - 2, 0)
+    if max_swap_by_layers <= 0:
+        print(
+            f'layer_offloading enabled but model only has {total_layers} layers, skip block swapping.'
+        )
+        return 0, False, None
+
+    computed_blocks_to_swap = int(round(max_swap_by_layers * layer_offloading_percent))
+    if computed_blocks_to_swap <= 0:
+        computed_blocks_to_swap = 1
+    computed_blocks_to_swap = min(computed_blocks_to_swap, max_swap_by_layers)
+    percent_for_log = int(round(layer_offloading_percent * 100))
+    print(
+        f'Auto layer_offloading -> blocks_to_swap: percent={percent_for_log}%, '
+        f'layers={total_layers}, computed={computed_blocks_to_swap}'
+    )
+    return computed_blocks_to_swap, True, layer_offloading_percent
+
+
+def _enable_block_swap_with_fallback(model, blocks_to_swap):
+    attempt = int(blocks_to_swap)
+    while attempt > 0:
+        try:
+            model.enable_block_swap(attempt)
+            return attempt
+        except AssertionError as exc:
+            # Only degrade automatically for capacity-related assertions.
+            err_text = str(exc)
+            if 'Cannot swap more than' not in err_text and 'Requested' not in err_text:
+                raise
+            attempt -= 1
+    return 0
+
+
 def get_most_recent_run_dir(output_dir):
     return list(sorted(glob.glob(os.path.join(output_dir, '*'))))[-1]
 
@@ -545,15 +631,32 @@ if __name__ == '__main__':
             dir=logging_dir
         )
 
-    # Block swapping
-    if blocks_to_swap := config.get('blocks_to_swap', 0):
+    # Block swapping / layer offloading compatibility
+    blocks_to_swap, auto_from_layer_offloading, _ = _resolve_blocks_to_swap(config, model)
+    if blocks_to_swap:
         assert config['pipeline_stages'] == 1, 'Block swapping only works with pipeline_stages=1'
         assert 'adapter' in config, 'Block swapping only works when training LoRA'
-        # Don't automatically move to GPU, we'll do that ourselves.
-        def to(self, *args, **kwargs):
-            pass
-        deepspeed.pipe.PipelineModule.to = to
-        model.enable_block_swap(blocks_to_swap)
+        if auto_from_layer_offloading:
+            actual_blocks_to_swap = _enable_block_swap_with_fallback(model, blocks_to_swap)
+            if actual_blocks_to_swap == 0:
+                print(
+                    f'layer_offloading requested {blocks_to_swap} blocks, '
+                    'but no valid block swap count was found. Continue without block swap.'
+                )
+            elif actual_blocks_to_swap != blocks_to_swap:
+                print(
+                    f'layer_offloading adjusted blocks_to_swap from '
+                    f'{blocks_to_swap} to {actual_blocks_to_swap} to fit model limits.'
+                )
+            blocks_to_swap = actual_blocks_to_swap
+        else:
+            model.enable_block_swap(blocks_to_swap)
+
+        if blocks_to_swap:
+            # Don't automatically move to GPU, we'll do that ourselves.
+            def to(self, *args, **kwargs):
+                pass
+            deepspeed.pipe.PipelineModule.to = to
 
     layers = model.to_layers()
     additional_pipeline_module_kwargs = {}

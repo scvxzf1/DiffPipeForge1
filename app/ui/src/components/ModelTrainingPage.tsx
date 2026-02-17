@@ -39,6 +39,9 @@ const DEFAULT_TRAINING_DATA = {
     activation_checkpointing: 'true',
     pipeline_stages: 1,
     blocks_to_swap: 0,
+    layer_offloading: false,
+    layer_offloading_percent: 50,
+    layer_offloading_text_encoder_percent: 100,
     caching_batch_size: 1,
     video_clip_mode: 'none',
     steps_per_print: 1,
@@ -217,6 +220,7 @@ export function ModelTrainingPage({
                 'epochs', 'micro_batch_size_per_gpu', 'gradient_accumulation_steps',
                 'warmup_steps', 'output_dir', 'save_dtype', 'partition_method',
                 'activation_checkpointing', 'pipeline_stages', 'blocks_to_swap',
+                'layer_offloading', 'layer_offloading_percent', 'layer_offloading_text_encoder_percent',
                 'caching_batch_size', 'save_every_n_epochs', 'checkpoint_every_n_minutes',
                 'disable_block_swap_for_eval', 'gradient_clipping', 'lr_scheduler',
                 'save_every_n_steps', 'eval_every_n_steps',
@@ -238,11 +242,49 @@ export function ModelTrainingPage({
                         tData.output_folder_name = basename;
                     } else if (key === 'activation_checkpointing') {
                         tData[key] = String(importedConfig[key]);
+                    } else if (key === 'layer_offloading_percent') {
+                        const rawPercent = Number(importedConfig[key]);
+                        if (!isNaN(rawPercent)) {
+                            tData[key] = rawPercent > 0 && rawPercent <= 1 ? rawPercent * 100 : rawPercent;
+                        } else {
+                            tData[key] = importedConfig[key];
+                        }
+                    } else if (key === 'layer_offloading_text_encoder_percent') {
+                        const rawPercent = Number(importedConfig[key]);
+                        if (!isNaN(rawPercent)) {
+                            tData[key] = rawPercent > 0 && rawPercent <= 1 ? rawPercent * 100 : rawPercent;
+                        } else {
+                            tData[key] = importedConfig[key];
+                        }
                     } else {
                         tData[key] = importedConfig[key];
                     }
                 }
             });
+
+            if (tData.layer_offloading === undefined && importedConfig.model?.layer_offloading !== undefined) {
+                tData.layer_offloading = importedConfig.model.layer_offloading;
+            }
+            if (tData.layer_offloading_percent === undefined) {
+                const transformerPercent = importedConfig.layer_offloading_transformer_percent
+                    ?? importedConfig.model?.layer_offloading_transformer_percent;
+                if (transformerPercent !== undefined) {
+                    const rawPercent = Number(transformerPercent);
+                    if (!isNaN(rawPercent)) {
+                        tData.layer_offloading_percent = rawPercent > 0 && rawPercent <= 1 ? rawPercent * 100 : rawPercent;
+                    }
+                }
+            }
+            if (tData.layer_offloading_text_encoder_percent === undefined) {
+                const textEncoderPercent = importedConfig.layer_offloading_text_encoder_percent
+                    ?? importedConfig.model?.layer_offloading_text_encoder_percent;
+                if (textEncoderPercent !== undefined) {
+                    const rawPercent = Number(textEncoderPercent);
+                    if (!isNaN(rawPercent)) {
+                        tData.layer_offloading_text_encoder_percent = rawPercent > 0 && rawPercent <= 1 ? rawPercent * 100 : rawPercent;
+                    }
+                }
+            }
 
             if (Object.keys(tData).length > 0) {
                 setTrainingData((prev: any) => ({ ...prev, ...tData }));
@@ -340,6 +382,11 @@ export function ModelTrainingPage({
             output_dir: finalOutputDir
         };
 
+        if (!fullConfig.layer_offloading) {
+            delete fullConfig.layer_offloading_percent;
+            delete fullConfig.layer_offloading_text_encoder_percent;
+        }
+
         // Remove undefined/empty/zero numericals for cleanliness (except specific keys)
         Object.keys(fullConfig).forEach(key => {
             const val = fullConfig[key];
@@ -358,7 +405,7 @@ export function ModelTrainingPage({
                 const optionalZeroKeys = [
                     'max_steps', 'force_constant_lr', 'pseudo_huber_c',
                     'map_num_proc', 'save_every_n_steps', 'eval_every_n_steps',
-                    'checkpoint_every_n_epochs', 'blocks_to_swap'
+                    'checkpoint_every_n_epochs', 'blocks_to_swap', 'layer_offloading_percent'
                 ];
 
                 if (optionalZeroKeys.includes(key)) {
@@ -411,6 +458,14 @@ export function ModelTrainingPage({
         if (trainingData.blocks_to_swap !== undefined) {
             const bts = Number(trainingData.blocks_to_swap);
             if (isNaN(bts) || bts < 0) return { valid: false, message: t('validation.invalid_number') };
+        }
+        if (trainingData.layer_offloading_percent !== undefined) {
+            const lop = Number(trainingData.layer_offloading_percent);
+            if (isNaN(lop) || lop < 0 || lop > 100) return { valid: false, message: t('validation.invalid_number') };
+        }
+        if (trainingData.layer_offloading_text_encoder_percent !== undefined) {
+            const ltep = Number(trainingData.layer_offloading_text_encoder_percent);
+            if (isNaN(ltep) || ltep < 0 || ltep > 100) return { valid: false, message: t('validation.invalid_number') };
         }
         if (trainingData.caching_batch_size !== undefined) {
             const cbs = Number(trainingData.caching_batch_size);
@@ -493,7 +548,8 @@ export function ModelTrainingPage({
             const topLevelKeys = [
                 'epochs', 'micro_batch_size_per_gpu', 'gradient_accumulation_steps', 'warmup_steps',
                 'output_dir', 'dataset', 'eval_datasets', 'save_dtype', 'partition_method', 'activation_checkpointing',
-                'pipeline_stages', 'blocks_to_swap', 'caching_batch_size', 'save_every_n_epochs',
+                'pipeline_stages', 'blocks_to_swap', 'layer_offloading', 'layer_offloading_percent', 'layer_offloading_text_encoder_percent',
+                'caching_batch_size', 'save_every_n_epochs',
                 'checkpoint_every_n_minutes', 'gradient_clipping', 'lr_scheduler', 'min_snr_gamma',
                 'max_steps', 'force_constant_lr', 'pseudo_huber_c', 'map_num_proc', 'steps_per_print',
                 'compile', 'x_axis_examples', 'reentrant_activation_checkpointing',
@@ -510,7 +566,8 @@ export function ModelTrainingPage({
                 'eval_every_n_epochs', 'eval_every_n_steps', 'checkpoint_every_n_epochs',
                 'checkpoint_every_n_minutes', 'pipeline_stages', 'map_num_proc', 'steps_per_print',
                 'max_steps', 'image_micro_batch_size_per_gpu', 'image_eval_micro_batch_size_per_gpu',
-                'eval_micro_batch_size_per_gpu', 'eval_gradient_accumulation_steps'
+                'eval_micro_batch_size_per_gpu', 'eval_gradient_accumulation_steps',
+                'layer_offloading_percent', 'layer_offloading_text_encoder_percent'
             ]);
 
             topLevelKeys.forEach(key => {
