@@ -92,8 +92,8 @@ DiffPipeForge/
 #### Linux
 在根目录下运行 `start.sh` 脚本：
 ```bash
-chmod +x start.sh
-./start.sh
+chmod +x start_with_submodules.sh
+./start_with_submodules.sh
 ```
 ####
 云端运行：
